@@ -12,9 +12,12 @@
         <nav class="tabs">
           <button class="tab active" data-view="play">Jugar</button>
           <button class="tab" data-view="skins">Skins</button>
-          <button class="tab" data-view="bp">Pase de batalla</button>
+          <button class="tab" data-view="bp">Pase</button>
+          <button class="tab" data-view="opt">Opciones</button>
+          <button class="tab" data-view="ctrl">Controles</button>
+          <button class="tab" data-view="cred">Créditos</button>
         </nav>
-        <div class="levelbadge">Nivel <span id="lvl">1</span></div>
+        <div class="levelbadge">Nv <span id="lvl">1</span></div>
       </header>
 
       <section id="view-play" class="view active">
@@ -28,12 +31,14 @@
         </div>
         <div id="hud"><span id="hl"></span><span id="hr"></span></div>
         <canvas id="g" width="660" height="460" tabindex="0"></canvas>
-        <div class="hint">WASD: mover · Mouse: apuntar · Clic: disparar · Teclas 1/2: arma/granada</div>
+        <div class="hint">WASD: mover · Mouse: apuntar · Clic: disparar · <b id="hk-sw">Q</b>: cambiar arma · <b id="hk-rl">R</b>: recargar</div>
       </section>
 
       <section id="view-skins" class="view">
-        <h2>Tus skins</h2>
+        <h2>Skin del personaje</h2>
         <div id="skingrid" class="grid"></div>
+        <h2 style="margin-top:18px">Animación de muerte</h2>
+        <div id="deathgrid" class="grid"></div>
       </section>
 
       <section id="view-bp" class="view">
@@ -43,6 +48,39 @@
         </div>
         <div id="bpbar"></div>
         <div id="bptrack" class="track"></div>
+      </section>
+
+      <section id="view-opt" class="view">
+        <h2>Opciones</h2>
+        <div class="optrow">
+          <span>Color de vida — aliados</span>
+          <div class="swatches" id="ally-colors"></div>
+        </div>
+        <div class="optrow">
+          <span>Color de vida — enemigos</span>
+          <div class="swatches" id="enemy-colors"></div>
+        </div>
+        <div class="optrow">
+          <span>Tiempo de reaparición</span>
+          <span class="muted">8 segundos</span>
+        </div>
+      </section>
+
+      <section id="view-ctrl" class="view">
+        <h2>Controles</h2>
+        <div class="optrow"><span>Mover</span><span class="muted">W A S D / flechas</span></div>
+        <div class="optrow"><span>Apuntar</span><span class="muted">Mouse</span></div>
+        <div class="optrow"><span>Disparar</span><span class="muted">Clic</span></div>
+        <div class="optrow"><span>Cambiar de arma</span><button class="keybtn" id="bind-sw">Q</button></div>
+        <div class="optrow"><span>Recargar</span><button class="keybtn" id="bind-rl">R</button></div>
+        <p class="muted" style="font-size:13px;margin-top:14px">Cada jugador tiene munición limitada: balas por cargador + reserva, y granadas. Se muestran abajo a la izquierda en la partida. Recarga cuando se acaba el cargador.</p>
+      </section>
+
+      <section id="view-cred" class="view">
+        <h2>Créditos</h2>
+        <p class="muted">Arena Shooter — prototipo.</p>
+        <p class="muted">Diseño y dirección: tú. Programación: Claude.</p>
+        <p class="muted">Hecho con Vite + Canvas. Temporada 1.</p>
       </section>
 
       <div id="toast" class="toast"></div>

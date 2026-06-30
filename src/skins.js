@@ -1,65 +1,66 @@
 export const SKINS = [
-  { id: "recluta", name: "Recluta", rarity: "común", body: "#6b7a99", accent: "#aab6cf", deco: "none" },
-  { id: "azul", name: "Cadete Azul", rarity: "común", body: "#378ADD", accent: "#9fd0ff", deco: "visor" },
-  { id: "verde", name: "Comando Verde", rarity: "común", body: "#639922", accent: "#C0DD97", deco: "visor" },
-  { id: "naranja", name: "Pyro Naranja", rarity: "raro", body: "#EF9F27", accent: "#FAC775", deco: "ring" },
-  { id: "morado", name: "Sombra Morada", rarity: "raro", body: "#7F77DD", accent: "#CECBF6", deco: "star" },
-  { id: "cian", name: "Neón Cian", rarity: "épico", body: "#1D9E75", accent: "#5DCAA5", deco: "neon" },
-  { id: "dorado", name: "Rey Dorado", rarity: "épico", body: "#E0A52B", accent: "#FFE08A", deco: "crown" },
-  { id: "calavera", name: "Calavera", rarity: "legendario", body: "#d6d6cf", accent: "#2c2c2a", deco: "skull" },
+  { id: "estandar", name: "Estándar", rarity: "común", body: "#5a6340", accent: "#3f4630" },
+  { id: "desertico", name: "Desértico", rarity: "común", body: "#b9a06b", accent: "#8c7748" },
+  { id: "urbano", name: "Urbano", rarity: "común", body: "#6e7378", accent: "#4c5054" },
+  { id: "nieve", name: "Nieve", rarity: "raro", body: "#dfe4ea", accent: "#aab2bd" },
+  { id: "selva", name: "Selva", rarity: "raro", body: "#2f4a2a", accent: "#1d3019" },
+  { id: "acero", name: "Acero", rarity: "épico", body: "#5b6675", accent: "#2f3742" },
+  { id: "oro", name: "Oro", rarity: "épico", body: "#d4af37", accent: "#8a6f1e" },
+  { id: "chroma", name: "Chroma", rarity: "legendario", body: "#ff00aa", accent: "#00e5ff", chroma: true },
 ];
 
-export const RARITY_COLOR = {
-  "común": "#8fa0c8",
-  "raro": "#378ADD",
-  "épico": "#7F77DD",
-  "legendario": "#FAC775",
-};
+export const DEATH_ANIMS = [
+  { id: "explosion", name: "Explosión", col: "#EF9F27" },
+  { id: "sangre", name: "Salpicadura", col: "#c0392b" },
+  { id: "humo", name: "Humo", col: "#9aa0a6" },
+  { id: "pixeles", name: "Pixeles", col: "#7F77DD" },
+];
+
+export const RARITY_COLOR = { "común": "#8fa0c8", "raro": "#378ADD", "épico": "#7F77DD", "legendario": "#FAC775" };
 
 const byId = {};
 SKINS.forEach((s) => (byId[s.id] = s));
 export function getSkin(id) { return byId[id] || SKINS[0]; }
-export function randomBotSkin() { return SKINS[Math.floor(Math.random() * SKINS.length)].id; }
+export function randomBotSkin() { return SKINS[Math.floor(Math.random() * 5)].id; }
+const dById = {};
+DEATH_ANIMS.forEach((d) => (dById[d.id] = d));
+export function getDeath(id) { return dById[id] || DEATH_ANIMS[0]; }
 
-export function drawSkin(ctx, x, y, r, skin) {
-  ctx.fillStyle = skin.body;
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, 6.283);
-  ctx.fill();
-  ctx.fillStyle = skin.accent;
-  ctx.strokeStyle = skin.accent;
-  ctx.lineWidth = 2;
-  if (skin.deco === "ring") {
-    ctx.beginPath(); ctx.arc(x, y, r * 0.55, 0, 6.283); ctx.stroke();
-  } else if (skin.deco === "star") {
-    star(ctx, x, y, r * 0.5);
-  } else if (skin.deco === "visor") {
-    ctx.beginPath(); ctx.arc(x, y, r * 0.6, -0.9, 0.9); ctx.lineWidth = 3; ctx.stroke();
-  } else if (skin.deco === "neon") {
-    ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, r - 1, 0, 6.283); ctx.stroke();
-    ctx.globalAlpha = 0.4; ctx.beginPath(); ctx.arc(x, y, r + 3, 0, 6.283); ctx.stroke(); ctx.globalAlpha = 1;
-  } else if (skin.deco === "crown") {
-    ctx.beginPath();
-    ctx.moveTo(x - r * 0.5, y - r * 0.5);
-    ctx.lineTo(x - r * 0.25, y - r * 0.9); ctx.lineTo(x, y - r * 0.5);
-    ctx.lineTo(x + r * 0.25, y - r * 0.9); ctx.lineTo(x + r * 0.5, y - r * 0.5);
-    ctx.closePath(); ctx.fill();
-  } else if (skin.deco === "skull") {
-    ctx.fillStyle = skin.accent;
-    ctx.beginPath(); ctx.arc(x - r * 0.35, y - r * 0.15, r * 0.18, 0, 6.283); ctx.fill();
-    ctx.beginPath(); ctx.arc(x + r * 0.35, y - r * 0.15, r * 0.18, 0, 6.283); ctx.fill();
-    ctx.fillRect(x - r * 0.3, y + r * 0.3, r * 0.6, r * 0.15);
-  }
+function chromaCol(off, t) { return "hsl(" + Math.floor((t * 80 + off) % 360) + ",85%,55%)"; }
+
+export function drawSoldier(ctx, x, y, r, skin, aim, t) {
+  const body = skin.chroma ? chromaCol(0, t) : skin.body;
+  const acc = skin.chroma ? chromaCol(60, t) : skin.accent;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(aim);
+  ctx.fillStyle = acc;
+  ctx.beginPath(); ctx.ellipse(-r * 0.1, 0, r * 0.72, r * 1.05, 0, 0, 6.283); ctx.fill();
+  ctx.fillStyle = "#1b1b1b";
+  ctx.fillRect(r * 0.3, -r * 0.13, r * 1.45, r * 0.26);
+  ctx.fillStyle = "#2a2a2a";
+  ctx.beginPath(); ctx.arc(r * 0.55, -r * 0.32, r * 0.22, 0, 6.283); ctx.fill();
+  ctx.beginPath(); ctx.arc(r * 0.55, r * 0.32, r * 0.22, 0, 6.283); ctx.fill();
+  ctx.fillStyle = body;
+  ctx.beginPath(); ctx.ellipse(-r * 0.12, 0, r * 0.85, r * 0.8, 0, 0, 6.283); ctx.fill();
+  ctx.fillStyle = acc;
+  ctx.beginPath(); ctx.arc(-r * 0.05, 0, r * 0.55, 0, 6.283); ctx.fill();
+  ctx.fillStyle = skin.chroma ? chromaCol(120, t) : body;
+  ctx.beginPath(); ctx.arc(-r * 0.05, 0, r * 0.4, 0, 6.283); ctx.fill();
+  ctx.restore();
 }
 
-function star(ctx, cx, cy, R) {
-  ctx.beginPath();
-  for (let i = 0; i < 5; i++) {
-    const a = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
-    const a2 = a + Math.PI / 5;
-    ctx.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R);
-    ctx.lineTo(cx + Math.cos(a2) * R * 0.45, cy + Math.sin(a2) * R * 0.45);
-  }
-  ctx.closePath();
-  ctx.fill();
+export function drawSoldierPreview(canvas, skinId) {
+  const c = canvas.getContext("2d"), s = canvas.width;
+  c.clearRect(0, 0, s, s);
+  drawSoldier(c, s / 2, s / 2, s / 2 - 8, getSkin(skinId), -Math.PI / 2, performance.now() / 1000);
+}
+
+export function drawDeathPreview(canvas, deathId) {
+  const c = canvas.getContext("2d"), s = canvas.width, d = getDeath(deathId);
+  c.clearRect(0, 0, s, s);
+  c.fillStyle = d.col;
+  if (deathId === "pixeles") { for (let i = 0; i < 9; i++) c.fillRect(s / 2 - 18 + (i % 3) * 14, s / 2 - 18 + Math.floor(i / 3) * 14, 9, 9); }
+  else if (deathId === "humo") { c.globalAlpha = 0.6; for (let i = 0; i < 4; i++) { c.beginPath(); c.arc(s / 2 + (i - 1.5) * 8, s / 2, 9, 0, 6.283); c.fill(); } c.globalAlpha = 1; }
+  else { for (let i = 0; i < 8; i++) { const a = (i / 8) * 6.283; c.beginPath(); c.arc(s / 2 + Math.cos(a) * 16, s / 2 + Math.sin(a) * 16, 4, 0, 6.283); c.fill(); } }
 }

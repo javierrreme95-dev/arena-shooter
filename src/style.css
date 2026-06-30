@@ -84,3 +84,22 @@ h2 { font-size: 18px; font-weight: 600; margin: 8px 2px 14px; }
   transition: opacity .3s; pointer-events: none; max-width: 90%; text-align: center;
 }
 .toast.show { opacity: 1; }
+
+.muted { color: var(--muted); }
+.optrow {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  padding: 12px 14px; margin-bottom: 8px; font-size: 14px;
+}
+.swatches { display: flex; gap: 8px; }
+.swatch {
+  width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
+  border: 2px solid transparent;
+}
+.swatch.sel { border-color: #fff; }
+.keybtn {
+  min-width: 56px; background: var(--panel2); color: var(--txt);
+  border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px;
+  cursor: pointer; font-size: 13px; font-weight: 600;
+}
+.keybtn.listening { border-color: var(--gold); color: var(--gold); }
