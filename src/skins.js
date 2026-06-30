@@ -1,3 +1,5 @@
+import { getSprite } from "./sprites.js";
+
 export const SKINS = [
   { id: "estandar", name: "Estándar", rarity: "común", body: "#5a6340", accent: "#3f4630" },
   { id: "desertico", name: "Desértico", rarity: "común", body: "#b9a06b", accent: "#8c7748" },
@@ -28,7 +30,14 @@ export function getDeath(id) { return dById[id] || DEATH_ANIMS[0]; }
 
 function chromaCol(off, t) { return "hsl(" + Math.floor((t * 80 + off) % 360) + ",85%,55%)"; }
 
+function drawImgRot(ctx, img, x, y, r, aim) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(aim + Math.PI / 2);
+  const s = r * 2.9; ctx.drawImage(img, -s / 2, -s / 2, s, s); ctx.restore();
+}
+
 export function drawSoldier(ctx, x, y, r, skin, aim, t) {
+  const img = getSprite("/sprites/soldado_" + skin.id + ".png");
+  if (img) { drawImgRot(ctx, img, x, y, r, aim); return; }
   const body = skin.chroma ? chromaCol(0, t) : skin.body;
   const acc = skin.chroma ? chromaCol(60, t) : skin.accent;
   ctx.save();
@@ -78,6 +87,8 @@ export function getZombie(id) { return zById[id] || ZOMBIE_SKINS[0]; }
 export function randomZombie() { return ZOMBIE_SKINS[Math.floor(Math.random() * ZOMBIE_SKINS.length)].id; }
 
 export function drawZombie(ctx, x, y, r, z, aim, t) {
+  const img = getSprite("/sprites/zombie_" + z.id + ".png");
+  if (img) { drawImgRot(ctx, img, x, y, r, aim); return; }
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(aim);
