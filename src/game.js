@@ -407,11 +407,12 @@ function draw() {
     if (mode === "inf" && o.team === "Z") drawZombie(ctx, o.x, o.y, o.r, getZombie(o.zskin), o.aim, t);
     else drawSoldier(ctx, o.x, o.y, o.r, getSkin(o.skin), o.aim, t);
     if (o.carry) drawFlag(o.x, o.y - o.r - 4, o.team === "A" ? "#378ADD" : "#E24B4A");
-    if (o.isP) {
-      ctx.strokeStyle = "rgba(255,255,255,0.45)"; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(o.x + Math.cos(o.aim) * 40, o.y + Math.sin(o.aim) * 40); ctx.stroke();
-      ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(o.x, o.y, o.r + 3, 0, 6.283); ctx.stroke();
+    {
+      const len = o.isP ? 40 : 24;
+      ctx.strokeStyle = o.isP ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.34)"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(o.x + Math.cos(o.aim) * len, o.y + Math.sin(o.aim) * len); ctx.stroke();
     }
+    if (o.isP) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(o.x, o.y, o.r + 3, 0, 6.283); ctx.stroke(); }
     if (o.bf.sh > 0 && o.shp > 0) { ctx.strokeStyle = "#85B7EB"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(o.x, o.y, o.r + 6, 0, 6.283); ctx.stroke(); }
     ctx.fillStyle = "rgba(255,255,255,0.22)"; ctx.fillRect(o.x - 15, o.y - o.r - 9, 30, 5);
     ctx.fillStyle = barCol(o); ctx.fillRect(o.x - 15, o.y - o.r - 9, (30 * Math.max(0, o.hp)) / o.maxhp, 5);
