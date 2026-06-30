@@ -31,8 +31,10 @@ export function getDeath(id) { return dById[id] || DEATH_ANIMS[0]; }
 function chromaCol(off, t) { return "hsl(" + Math.floor((t * 80 + off) % 360) + ",85%,55%)"; }
 
 function drawImgRot(ctx, img, x, y, r, aim) {
+  const s = r * 3, iw = img.naturalWidth, ih = img.naturalHeight, sc = s / Math.max(iw, ih);
+  const w = iw * sc, h = ih * sc;
   ctx.save(); ctx.translate(x, y); ctx.rotate(aim + Math.PI / 2);
-  const s = r * 2.9; ctx.drawImage(img, -s / 2, -s / 2, s, s); ctx.restore();
+  ctx.drawImage(img, -w / 2, -h / 2, w, h); ctx.restore();
 }
 
 export function drawSoldier(ctx, x, y, r, skin, aim, t) {
