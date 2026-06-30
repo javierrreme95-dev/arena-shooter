@@ -255,7 +255,11 @@ function draw() {
     if (mode === "inf" && o.team === "Z") drawZombie(ctx, o.x, o.y, o.r, getZombie(o.zskin), o.aim, t);
     else drawSoldier(ctx, o.x, o.y, o.r, getSkin(o.skin), o.aim, t);
     if (o.carry) drawFlag(o.x, o.y - o.r - 4, o.team === "A" ? "#378ADD" : "#E24B4A");
-    if (o.isP) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(o.x, o.y, o.r + 3, 0, 6.283); ctx.stroke(); }
+    if (o.isP) {
+      ctx.strokeStyle = "rgba(255,255,255,0.45)"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(o.x + Math.cos(o.aim) * 40, o.y + Math.sin(o.aim) * 40); ctx.stroke();
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(o.x, o.y, o.r + 3, 0, 6.283); ctx.stroke();
+    }
     if (o.bf.sh > 0 && o.shp > 0) { ctx.strokeStyle = "#85B7EB"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(o.x, o.y, o.r + 6, 0, 6.283); ctx.stroke(); }
     ctx.fillStyle = "rgba(255,255,255,0.22)"; ctx.fillRect(o.x - 15, o.y - o.r - 9, 30, 5);
     ctx.fillStyle = barCol(o); ctx.fillRect(o.x - 15, o.y - o.r - 9, (30 * Math.max(0, o.hp)) / 100, 5);
@@ -277,6 +281,14 @@ function draw() {
     ctx.fillStyle = me.wp === "nade" ? "#5DCAA5" : "#9fb0d6";
     ctx.fillText("Granadas " + me.gr + (me.wp === "nade" ? "  (activo)" : ""), 10, H - 8);
   }
+  ctx.strokeStyle = "rgba(255,255,255,0.7)"; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 8, 0, 6.283); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(mouse.x - 13, mouse.y); ctx.lineTo(mouse.x - 4, mouse.y);
+  ctx.moveTo(mouse.x + 4, mouse.y); ctx.lineTo(mouse.x + 13, mouse.y);
+  ctx.moveTo(mouse.x, mouse.y - 13); ctx.lineTo(mouse.x, mouse.y - 4);
+  ctx.moveTo(mouse.x, mouse.y + 4); ctx.lineTo(mouse.x, mouse.y + 13);
+  ctx.stroke();
   if (me && me.alive && me.bf.bl > 0) { const g = ctx.createRadialGradient(me.x, me.y, 40, me.x, me.y, 260); g.addColorStop(0, "rgba(10,12,24,0)"); g.addColorStop(1, "rgba(8,10,20,0.92)"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); }
   if (me && !me.alive && state === "play" && !over) { ctx.fillStyle = "rgba(10,14,28,0.55)"; ctx.fillRect(0, H / 2 - 34, W, 68); ctx.fillStyle = "#fff"; ctx.font = "600 22px sans-serif"; ctx.textAlign = "center"; ctx.fillText("Reapareces en " + Math.ceil(me.resp) + "…", W / 2, H / 2 + 7); }
 
