@@ -330,6 +330,27 @@ function drawStairs() {
   }
 }
 
+function drawMinimap() {
+  const mmW = 150, mmH = Math.round(mmW * H / W), x0 = VW - mmW - 10, y0 = VH - mmH - 10;
+  const sx = mmW / W, sy = mmH / H;
+  ctx.fillStyle = "rgba(10,14,28,0.72)"; ctx.fillRect(x0, y0, mmW, mmH);
+  ctx.strokeStyle = "rgba(255,255,255,0.3)"; ctx.lineWidth = 1; ctx.strokeRect(x0, y0, mmW, mmH);
+  ctx.fillStyle = "rgba(120,130,150,0.55)";
+  for (const r of walls) ctx.fillRect(x0 + r.x * sx, y0 + r.y * sy, Math.max(1, r.w * sx), Math.max(1, r.h * sy));
+  ctx.fillStyle = "#FAC775";
+  for (const s of stairs) ctx.fillRect(x0 + s.x * sx - 2, y0 + s.y * sy - 2, 4, 4);
+  if (mode === "koth" && hill) { ctx.strokeStyle = "#5DCAA5"; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(x0 + hill.x * sx, y0 + hill.y * sy, hill.r * sx, 0, 6.283); ctx.stroke(); }
+  if (mode === "ctf" && flag) { ctx.fillStyle = "#fff"; ctx.fillRect(x0 + flag.x * sx - 2, y0 + flag.y * sy - 2, 4, 4); }
+  for (const o of ents) {
+    if (!o.alive) continue;
+    ctx.fillStyle = barCol(o);
+    const px = x0 + o.x * sx, py = y0 + o.y * sy;
+    ctx.beginPath(); ctx.arc(px, py, o.isP ? 3 : 2.4, 0, 6.283); ctx.fill();
+    if (o.isP) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 1; ctx.stroke(); }
+  }
+  ctx.strokeStyle = "rgba(255,255,255,0.5)"; ctx.lineWidth = 1; ctx.strokeRect(x0 + cam.x * sx, y0 + cam.y * sy, VW * sx, VH * sy);
+}
+
 function draw() {
   const t = nowS();
   ctx.clearRect(0, 0, VW, VH);
@@ -383,13 +404,15 @@ function draw() {
   ctx.textAlign = "right"; ctx.font = "12px sans-serif";
   for (let i = 0; i < feed.length; i++) { ctx.globalAlpha = Math.min(1, feed[i].life); ctx.fillStyle = "#dbe3f5"; ctx.fillText(feed[i].txt, VW - 8, 16 + i * 16); ctx.globalAlpha = 1; }
 
+  drawMinimap();
   const me = playerEnt();
   if (me && me.alive) {
-    ctx.textAlign = "left"; ctx.font = "700 13px sans-serif";
+    const mmH = Math.round(150 * H / W), ry = VH - mmH - 22;
+    ctx.textAlign = "right"; ctx.font = "700 13px sans-serif";
     ctx.fillStyle = me.wp === "gun" ? "#ffe8a0" : "#cfcfc6";
-    ctx.fillText("Balas " + (me.reloading > 0 ? "recargando…" : me.mag + " / " + me.reserve), 10, VH - 24);
+    ctx.fillText("Balas " + (me.reloading > 0 ? "recargando…" : me.mag + " / " + me.reserve), VW - 12, ry);
     ctx.fillStyle = me.wp === "nade" ? "#5DCAA5" : "#9fb0d6";
-    ctx.fillText("Granadas " + me.gr + (me.wp === "nade" ? "  (activo)" : ""), 10, VH - 8);
+    ctx.fillText("Granadas " + me.gr + (me.wp === "nade" ? "  (activo)" : ""), VW - 12, ry + 16);
   }
   ctx.strokeStyle = "rgba(255,255,255,0.7)"; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 8, 0, 6.283); ctx.stroke();
