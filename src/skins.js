@@ -30,16 +30,31 @@ export function getDeath(id) { return dById[id] || DEATH_ANIMS[0]; }
 
 function chromaCol(off, t) { return "hsl(" + Math.floor((t * 80 + off) % 360) + ",85%,55%)"; }
 
-function drawImgRot(ctx, img, x, y, r, aim) {
+let _off, _octx;
+function tintImg(img, tint) {
+  if (!_off) { _off = document.createElement("canvas"); _octx = _off.getContext("2d"); }
+  _off.width = img.naturalWidth; _off.height = img.naturalHeight;
+  _octx.globalCompositeOperation = "source-over";
+  _octx.clearRect(0, 0, _off.width, _off.height);
+  _octx.drawImage(img, 0, 0);
+  _octx.globalCompositeOperation = "source-atop";
+  _octx.fillStyle = tint;
+  _octx.fillRect(0, 0, _off.width, _off.height);
+  _octx.globalCompositeOperation = "source-over";
+  return _off;
+}
+
+function drawImgRot(ctx, img, x, y, r, aim, tint) {
+  const src = tint ? tintImg(img, tint) : img;
   const s = r * 3, iw = img.naturalWidth, ih = img.naturalHeight, sc = s / Math.max(iw, ih);
   const w = iw * sc, h = ih * sc;
   ctx.save(); ctx.translate(x, y); ctx.rotate(aim + Math.PI / 2);
-  ctx.drawImage(img, -w / 2, -h / 2, w, h); ctx.restore();
+  ctx.drawImage(src, -w / 2, -h / 2, w, h); ctx.restore();
 }
 
 export function drawSoldier(ctx, x, y, r, skin, aim, t) {
   const img = getSprite("/sprites/soldado_" + skin.id + ".png");
-  if (img) { drawImgRot(ctx, img, x, y, r, aim); return; }
+  if (img) { drawImgRot(ctx, img, x, y, r, aim, skin.chroma ? "hsla(" + Math.floor((t * 120) % 360) + ",90%,55%,0.55)" : null); return; }
   const body = skin.chroma ? chromaCol(0, t) : skin.body;
   const acc = skin.chroma ? chromaCol(60, t) : skin.accent;
   ctx.save();

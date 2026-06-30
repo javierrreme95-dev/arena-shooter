@@ -2,7 +2,7 @@ import "./style.css";
 import * as game from "./game.js";
 import * as bp from "./battlepass.js";
 import * as P from "./progress.js";
-import { getSkin, getDeath } from "./skins.js";
+import { getSkin, getDeath, SKINS, DEATH_ANIMS } from "./skins.js";
 
 const $ = (id) => document.getElementById(id);
 const toastEl = $("toast");
@@ -90,5 +90,11 @@ $("buyprem").addEventListener("click", () => {
 
 bindKey($("bind-sw"), "keySwitch");
 bindKey($("bind-rl"), "keyReload");
+
+$("unlockall").addEventListener("click", () => {
+  P.unlockAll(SKINS.map((s) => s.id), DEATH_ANIMS.map((d) => d.id));
+  toast("¡Todo desbloqueado! Nivel máximo. Equipa Chroma en Skins.");
+  refreshUI();
+});
 
 refreshUI();

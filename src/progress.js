@@ -51,6 +51,15 @@ export function addXP(amount) {
   return { gained: amount, leveledTo: after > before ? after : null, unlocks };
 }
 
+export function unlockAll(skinIds, deathIds) {
+  state.premium = true;
+  state.xp = (MAXLV - 1) * XP_PER;
+  state.level = MAXLV;
+  skinIds.forEach((id) => { if (!state.unlocked.includes(id)) state.unlocked.push(id); });
+  deathIds.forEach((id) => { if (!state.unlockedDeaths.includes(id)) state.unlockedDeaths.push(id); });
+  save();
+}
+
 export function buyPremium() {
   state.premium = true;
   const unlocks = [];

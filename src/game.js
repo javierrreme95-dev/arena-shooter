@@ -1,5 +1,6 @@
 import { getSkin, drawSoldier, randomBotSkin, getDeath, getZombie, randomZombie, drawZombie } from "./skins.js";
 import * as P from "./progress.js";
+import * as audio from "./audio.js";
 
 let cv, ctx, W, H, cb = {};
 let mode = "normal", state = "menu";
@@ -7,10 +8,12 @@ let ents = [], bullets = [], nades = [], pups = [], parts = [], rings = [], floa
 let scoreA = 0, scoreB = 0, cfgKill = 15, timer = 0, hill = null, flag = null, ctfTurns = [], ctfIdx = 0, pupT = 0, hillMove = 0, over = null;
 const keys = {}, mouse = { x: 330, y: 230, down: false };
 const RESP = 8;
-const walls = [
-  { x: 300, y: 70, w: 60, h: 90 }, { x: 300, y: 300, w: 60, h: 90 },
-  { x: 120, y: 200, w: 90, h: 55 }, { x: 450, y: 200, w: 90, h: 55 },
+const MAPS = [
+  [{ x: 300, y: 70, w: 60, h: 90 }, { x: 300, y: 300, w: 60, h: 90 }, { x: 120, y: 200, w: 90, h: 55 }, { x: 450, y: 200, w: 90, h: 55 }],
+  [{ x: 150, y: 60, w: 50, h: 160 }, { x: 460, y: 240, w: 50, h: 160 }, { x: 290, y: 195, w: 80, h: 70 }],
+  [{ x: 90, y: 110, w: 130, h: 40 }, { x: 440, y: 110, w: 130, h: 40 }, { x: 90, y: 310, w: 130, h: 40 }, { x: 440, y: 310, w: 130, h: 40 }, { x: 305, y: 200, w: 50, h: 60 }],
 ];
+let walls = MAPS[0];
 const ALLYC = { azul: "#378ADD", verde: "#5DCAA5" };
 const ENEMYC = { rojo: "#E24B4A", negro: "#0e131c" };
 
@@ -27,7 +30,7 @@ function spawn(team) {
 }
 function mkE(team, isP, smul, name) {
   const p = spawn(team);
-  return { x: p.x, y: p.y, r: 13, team, isP, name, hp: 100, aim: 0, cd: 0, alive: true, resp: 0, dx: p.x, dy: p.y, kills: 0, points: 0, smul: smul || 1, bf: { fire: 0, sh: 0, bl: 0 }, shp: 0, wp: "gun", gr: 0, carry: false, skin: isP ? P.getEquipped() : randomBotSkin(), zskin: "clasico", mag: 24, reserve: 120, reloading: 0 };
+  return { x: p.x, y: p.y, r: 13, team, isP, name, hp: 100, maxhp: 100, aim: 0, cd: 0, alive: true, resp: 0, dx: p.x, dy: p.y, kills: 0, points: 0, smul: smul || 1, bf: { fire: 0, sh: 0, bl: 0 }, shp: 0, wp: "gun", gr: 0, carry: false, skin: isP ? P.getEquipped() : randomBotSkin(), zskin: "clasico", mag: 24, reserve: 120, reloading: 0 };
 }
 function isEnemy(a, b) { if (mode === "koth") return a !== b; return a.team !== b.team; }
 function nEnemy(e) { let best = null, bd = 1e9; for (const o of ents) if (o.alive && isEnemy(e, o)) { const d = dist(e, o); if (d < bd) { bd = d; best = o; } } return best; }
@@ -49,7 +52,7 @@ export function init(canvas, callbacks) {
   window.addEventListener("keyup", (e) => { keys[e.key.toLowerCase()] = false; });
   const mp = (ev) => { const rc = cv.getBoundingClientRect(), sx = cv.width / rc.width, sy = cv.height / rc.height; const c = ev.touches ? ev.touches[0] : ev; mouse.x = (c.clientX - rc.left) * sx; mouse.y = (c.clientY - rc.top) * sy; };
   cv.addEventListener("mousemove", mp);
-  cv.addEventListener("mousedown", (e) => { cv.focus(); mp(e); mouse.down = true; });
+  cv.addEventListener("mousedown", (e) => { cv.focus(); mp(e); mouse.down = true; audio.resume(); });
   window.addEventListener("mouseup", () => { mouse.down = false; });
   cv.addEventListener("touchstart", (e) => { mp(e); mouse.down = true; e.preventDefault(); }, { passive: false });
   cv.addEventListener("touchmove", (e) => { mp(e); e.preventDefault(); }, { passive: false });
@@ -61,6 +64,7 @@ export function start(m, cfg) {
   mode = m; bullets = []; nades = []; pups = []; parts = []; rings = []; floats = []; feed = [];
   over = null; scoreA = 0; scoreB = 0; timer = 0; flag = null; hill = null; pupT = 2; hillMove = 0;
   cfgKill = (cfg && cfg.kill) || 15;
+  walls = MAPS[Math.floor(Math.random() * MAPS.length)];
   if (m === "normal") {
     const s = (cfg && cfg.size) || 3;
     ents = [mkE("A", true, 1, "TÚ")];
@@ -76,7 +80,7 @@ export function start(m, cfg) {
     for (let i = 0; i < 5; i++) ents.push(mkE("FFA" + i, false, 1, "Bot " + (i + 1)));
     hill = { x: W / 2, y: H / 2, r: 55 }; hillMove = 18;
   } else if (m === "inf") {
-    ents = [mkE("Z", false, 1.5, "Infectado")]; ents[0].wp = "none"; ents[0].zskin = "rapido";
+    ents = [mkE("Z", false, 1.5, "Infectado")]; ents[0].wp = "none"; ents[0].zskin = "rapido"; ents[0].maxhp = 220; ents[0].hp = 220;
     ents.push(mkE("S", true, 1, "TÚ"));
     for (let i = 0; i < 8; i++) ents.push(mkE("S", false, 1, "Humano " + (i + 1)));
     timer = 60;
@@ -86,8 +90,14 @@ export function start(m, cfg) {
 
 function newFlag() { const at = ctfTurns[ctfIdx]; flag = { x: at === "A" ? 20 : W - 20, y: H / 2, carrier: null, att: at }; }
 function fcd(e) { return (e.bf.fire > 0 ? 0.09 : 0.18) * (e.isP ? 1 : 3.2); }
-function shoot(e, ang) { bullets.push({ x: e.x + Math.cos(ang) * 18, y: e.y + Math.sin(ang) * 18, vx: Math.cos(ang) * 460, vy: Math.sin(ang) * 460, team: e.team, by: e, life: 1.4 }); }
-function reload(e) { if (e.reloading > 0 || e.reserve <= 0 || e.mag >= 24) return; e.reloading = 1.3; }
+function shoot(e, ang) {
+  e.aim = ang;
+  const mx = e.x + Math.cos(ang) * 18, my = e.y + Math.sin(ang) * 18;
+  bullets.push({ x: mx, y: my, vx: Math.cos(ang) * 460, vy: Math.sin(ang) * 460, team: e.team, by: e, life: 1.4 });
+  parts.push({ x: mx, y: my, vx: 0, vy: 0, life: 0.05, col: "#ffe8a0", sz: 7 });
+  if (e.isP) audio.shoot();
+}
+function reload(e) { if (e.reloading > 0 || e.reserve <= 0 || e.mag >= 24) return; e.reloading = 1.3; if (e.isP) audio.reload(); }
 function throwNade(e) { if (e.gr <= 0) return; e.gr--; const ang = e.aim, d = Math.min(220, dist(e, { x: mouse.x, y: mouse.y })); nades.push({ x: e.x, y: e.y, tx: e.x + Math.cos(ang) * d, ty: e.y + Math.sin(ang) * d, t: 0.7, team: e.team }); }
 function hurt(e, dmg, by) { if (e.bf.sh > 0 && e.shp > 0) { e.shp -= dmg; if (e.shp < 0) { e.hp += e.shp; e.shp = 0; } } else e.hp -= dmg; if (e.hp <= 0 && e.alive) die(e, by); }
 
@@ -111,7 +121,7 @@ function pickup(e, ty) {
   if (ty === "fire") e.bf.fire = 6;
   else if (ty === "nade") e.gr += 2;
   else if (ty === "shield") { e.bf.sh = 6; e.shp = 60; }
-  else if (ty === "revive") { for (const o of ents) if (o.team === e.team && !o.alive) { o.alive = true; o.hp = 100; o.resp = 0; const p = spawn(o.team); o.x = p.x; o.y = p.y; break; } }
+  else if (ty === "revive") { for (const o of ents) if (o.team === e.team && !o.alive) { o.alive = true; o.hp = o.maxhp; o.resp = 0; const p = spawn(o.team); o.x = p.x; o.y = p.y; break; } }
   else if (ty === "blind") { for (const o of ents) if (isEnemy(e, o)) o.bf.bl = 5; }
 }
 function moveC(e, dx, dy) {
@@ -153,7 +163,7 @@ function update(dt) {
   if (mode === "normal") { pupT -= dt; if (pupT <= 0 && pups.length < 4) { pupT = 5; const ty = ["fire", "nade", "shield", "revive", "blind"][Math.floor(rnd(0, 5))]; const p = spawn("mid"); pups.push({ x: p.x, y: p.y, ty }); } }
 
   for (const e of ents) {
-    if (!e.alive) { e.resp -= dt; if (e.resp <= 0) { e.alive = true; e.hp = 100; e.mag = 24; e.reloading = 0; const p = spawn(e.team); e.x = p.x; e.y = p.y; } continue; }
+    if (!e.alive) { e.resp -= dt; if (e.resp <= 0) { e.alive = true; e.hp = e.maxhp; e.mag = 24; e.reloading = 0; const p = spawn(e.team); e.x = p.x; e.y = p.y; } continue; }
     for (const k in e.bf) if (e.bf[k] > 0) e.bf[k] -= dt;
     if (e.reloading > 0) { e.reloading -= dt; if (e.reloading <= 0) { const need = 24 - e.mag, take = Math.min(need, e.reserve); e.mag += take; e.reserve -= take; } }
     const sp = 150 * e.smul;
@@ -178,7 +188,7 @@ function update(dt) {
         if (e.wp !== "none" && d < rng && !los(e, tg) && e.cd <= 0) { shoot(e, a + rnd(-0.1, 0.1)); e.cd = fcd(e); }
       }
     }
-    if (mode === "inf" && e.team === "Z") for (const o of ents) if (o.team === "S" && o.alive && dist(e, o) < e.r + o.r + 2) { o.team = "Z"; o.smul = 1.5; o.wp = "none"; o.zskin = randomZombie(); }
+    if (mode === "inf" && e.team === "Z") for (const o of ents) if (o.team === "S" && o.alive && dist(e, o) < e.r + o.r + 2) { o.team = "Z"; o.smul = 1.5; o.wp = "none"; o.zskin = randomZombie(); o.maxhp = 60; o.hp = 60; }
     if (mode === "koth" && hill) { const inside = ents.filter((o) => o.alive && dist(o, hill) < hill.r); if (inside.length === 1) inside[0].points += dt; }
     if (mode === "ctf" && flag) {
       if (!flag.carrier && e.team === flag.att && dist(e, flag) < e.r + 8) { flag.carrier = e; e.carry = true; }
@@ -197,7 +207,7 @@ function update(dt) {
   }
   for (let n = nades.length - 1; n >= 0; n--) {
     const nd = nades[n]; nd.t -= dt; nd.x += (nd.tx - nd.x) * Math.min(1, dt * 4); nd.y += (nd.ty - nd.y) * Math.min(1, dt * 4);
-    if (nd.t <= 0) { rings.push({ x: nd.x, y: nd.y, r: 8, max: 60, life: 0.35, col: "#FAC775", lw: 4 }); for (const e3 of ents) if (e3.alive && e3.team !== nd.team && dist(e3, nd) < 60) hurt(e3, 55, null); nades.splice(n, 1); }
+    if (nd.t <= 0) { rings.push({ x: nd.x, y: nd.y, r: 8, max: 60, life: 0.35, col: "#FAC775", lw: 4 }); audio.boom(); for (const e3 of ents) if (e3.alive && e3.team !== nd.team && dist(e3, nd) < 60) hurt(e3, 55, null); nades.splice(n, 1); }
   }
   for (let p = pups.length - 1; p >= 0; p--) for (const e4 of ents) if (e4.alive && dist(e4, pups[p]) < e4.r + 8) { pickup(e4, pups[p].ty); pups.splice(p, 1); break; }
 }
@@ -262,7 +272,7 @@ function draw() {
     }
     if (o.bf.sh > 0 && o.shp > 0) { ctx.strokeStyle = "#85B7EB"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(o.x, o.y, o.r + 6, 0, 6.283); ctx.stroke(); }
     ctx.fillStyle = "rgba(255,255,255,0.22)"; ctx.fillRect(o.x - 15, o.y - o.r - 9, 30, 5);
-    ctx.fillStyle = barCol(o); ctx.fillRect(o.x - 15, o.y - o.r - 9, (30 * Math.max(0, o.hp)) / 100, 5);
+    ctx.fillStyle = barCol(o); ctx.fillRect(o.x - 15, o.y - o.r - 9, (30 * Math.max(0, o.hp)) / o.maxhp, 5);
     if (mode === "koth") { ctx.fillStyle = "#fff"; ctx.font = "10px sans-serif"; ctx.textAlign = "center"; ctx.fillText(Math.floor(o.points), o.x, o.y - o.r - 13); }
   }
 
