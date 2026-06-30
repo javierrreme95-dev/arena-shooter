@@ -5,14 +5,15 @@ import * as audio from "./audio.js";
 let cv, ctx, W, H, VW, VH, cb = {};
 const cam = { x: 0, y: 0 };
 let floorType = "concrete", stairs = [];
+let netMode = false, netSend = null, myNetId = null, netClock = 0;
 let mode = "normal", state = "menu";
 let ents = [], bullets = [], nades = [], pups = [], parts = [], rings = [], floats = [], feed = [];
 let scoreA = 0, scoreB = 0, cfgKill = 15, timer = 0, hill = null, flag = null, ctfTurns = [], ctfIdx = 0, pupT = 0, hillMove = 0, over = null;
 const keys = {}, mouse = { x: 330, y: 230, down: false };
 const RESP = 8;
-const MAPS = [
+const MAPS_BIG = [
   {
-    floor: "concrete",
+    w: 1100, h: 760, floor: "concrete",
     walls: [
       { x: 250, y: 120, w: 30, h: 200 }, { x: 820, y: 120, w: 30, h: 200 },
       { x: 250, y: 440, w: 30, h: 200 }, { x: 820, y: 440, w: 30, h: 200 },
@@ -22,7 +23,7 @@ const MAPS = [
     stairs: [{ x: 80, y: 80, tx: 1020, ty: 680 }, { x: 1020, y: 680, tx: 80, ty: 80 }],
   },
   {
-    floor: "grass",
+    w: 1100, h: 760, floor: "grass",
     walls: [
       { x: 300, y: 200, w: 220, h: 30 }, { x: 600, y: 530, w: 220, h: 30 },
       { x: 200, y: 400, w: 30, h: 170 }, { x: 880, y: 200, w: 30, h: 170 },
@@ -31,8 +32,17 @@ const MAPS = [
     stairs: [{ x: 90, y: 680, tx: 1010, ty: 80 }, { x: 1010, y: 80, tx: 90, ty: 680 }],
   },
 ];
-let walls = MAPS[0].walls;
+const MAPS_SMALL = [
+  { w: 660, h: 460, floor: "concrete", walls: [{ x: 300, y: 70, w: 60, h: 90 }, { x: 300, y: 300, w: 60, h: 90 }, { x: 120, y: 200, w: 90, h: 55 }, { x: 450, y: 200, w: 90, h: 55 }], stairs: [] },
+  { w: 660, h: 460, floor: "grass", walls: [{ x: 150, y: 60, w: 50, h: 160 }, { x: 460, y: 240, w: 50, h: 160 }, { x: 290, y: 195, w: 80, h: 70 }], stairs: [] },
+];
+let walls = MAPS_SMALL[0].walls;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+function pickMap(size) {
+  const set = size >= 4 ? MAPS_BIG : MAPS_SMALL;
+  const m = set[Math.floor(Math.random() * set.length)];
+  walls = m.walls; floorType = m.floor; stairs = m.stairs; W = m.w; H = m.h;
+}
 const ALLYC = { azul: "#378ADD", verde: "#5DCAA5" };
 const ENEMYC = { rojo: "#E24B4A", negro: "#0e131c" };
 
@@ -82,11 +92,12 @@ export function init(canvas, callbacks) {
 export function start(m, cfg) {
   mode = m; bullets = []; nades = []; pups = []; parts = []; rings = []; floats = []; feed = [];
   over = null; scoreA = 0; scoreB = 0; timer = 0; flag = null; hill = null; pupT = 2; hillMove = 0;
+  netMode = false; netSend = null;
   cfgKill = (cfg && cfg.kill) || 15;
-  const _m = MAPS[Math.floor(Math.random() * MAPS.length)];
-  walls = _m.walls; floorType = _m.floor; stairs = _m.stairs;
+  const size = (cfg && cfg.size) || 3;
+  pickMap(m === "koth" || m === "inf" ? 5 : m === "ctf" ? 3 : size);
   if (m === "normal") {
-    const s = (cfg && cfg.size) || 3;
+    const s = size;
     ents = [mkE("A", true, 1, "TÚ")];
     for (let i = 1; i < s; i++) ents.push(mkE("A", false, 1, "Aliado " + i));
     for (let j = 0; j < s; j++) ents.push(mkE("B", false, 1, "Rojo " + (j + 1)));
@@ -108,6 +119,28 @@ export function start(m, cfg) {
   state = "play"; cv.focus();
 }
 
+export function startOnline(opts) {
+  start(opts.mode, { size: opts.size, kill: 30 });
+  netMode = true; netSend = opts.send; myNetId = opts.myId; netClock = 0;
+  const meTeam = opts.team || "A";
+  const p = spawn(meTeam);
+  ents = [{ ...mkE(meTeam, true, 1, opts.name || "TÚ"), x: p.x, y: p.y, netId: opts.myId }];
+  state = "play"; cv.focus();
+}
+export function netState(id, s) {
+  if (!netMode || id === myNetId) return;
+  let e = ents.find((x) => x.netId === id);
+  if (!e) { e = mkE(s.team || "B", false, 1, s.name || "Jugador"); e.net = true; e.netId = id; e.x = s.x; e.y = s.y; e.tx = s.x; e.ty = s.y; ents.push(e); }
+  e.tx = s.x; e.ty = s.y; e.aim = s.aim; e.hp = s.hp; e.maxhp = s.maxhp || 100; e.alive = s.alive; e.skin = s.skin || e.skin; e.zskin = s.zskin || e.zskin; e.wp = s.wp || "gun"; e.team = s.team || e.team; e.name = s.name || e.name;
+}
+export function netShot(id, x, y, ang) {
+  if (!netMode || id === myNetId) return;
+  const sh = ents.find((p) => p.netId === id), team = sh ? sh.team : "B";
+  bullets.push({ x, y, vx: Math.cos(ang) * 460, vy: Math.sin(ang) * 460, team, by: sh || { team }, life: 1.4 });
+  parts.push({ x, y, vx: 0, vy: 0, life: 0.05, col: "#ffe8a0", sz: 7 });
+}
+export function netLeft(id) { if (!netMode) return; const i = ents.findIndex((x) => x.netId === id); if (i >= 0) ents.splice(i, 1); }
+
 function newFlag() { const at = ctfTurns[ctfIdx]; flag = { x: at === "A" ? 20 : W - 20, y: H / 2, carrier: null, att: at }; }
 function fcd(e) { return (e.bf.fire > 0 ? 0.09 : 0.18) * (e.isP ? 1 : 3.2); }
 function shoot(e, ang) {
@@ -116,6 +149,7 @@ function shoot(e, ang) {
   bullets.push({ x: mx, y: my, vx: Math.cos(ang) * 460, vy: Math.sin(ang) * 460, team: e.team, by: e, life: 1.4 });
   parts.push({ x: mx, y: my, vx: 0, vy: 0, life: 0.05, col: "#ffe8a0", sz: 7 });
   if (e.isP) audio.shoot();
+  if (netMode && e.isP && netSend) netSend({ t: "shot", x: mx, y: my, ang });
 }
 function reload(e) { if (e.reloading > 0 || e.reserve <= 0 || e.mag >= 24) return; e.reloading = 1.3; if (e.isP) audio.reload(); }
 function throwNade(e) { if (e.gr <= 0) return; e.gr--; const ang = e.aim, d = Math.min(220, dist(e, { x: mouse.x + cam.x, y: mouse.y + cam.y })); nades.push({ x: e.x, y: e.y, tx: e.x + Math.cos(ang) * d, ty: e.y + Math.sin(ang) * d, t: 0.7, team: e.team }); }
@@ -133,6 +167,7 @@ function die(e, by) {
   spawnDeath(e);
   if (by) { feed.unshift({ txt: by.name + " ▸ " + e.name, life: 4 }); if (feed.length > 5) feed.pop(); }
   if (by && by.isP) floats.push({ x: e.x, y: e.y, txt: "+50", life: 1, col: "#FAC775" });
+  if (netMode) return;
   if (mode === "normal") { if (by) { if (by.team === "A") scoreA++; else scoreB++; } if (scoreA >= cfgKill) endGame("Ganó Azul"); if (scoreB >= cfgKill) endGame("Ganó Rojo"); }
   else if (mode === "koth") { if (by) by.kills++; }
   else if (mode === "ctf") { if (flag && flag.carrier === e) { flag.carrier = null; flag.x = flag.att === "A" ? 20 : W - 20; flag.y = H / 2; } }
@@ -185,7 +220,8 @@ function update(dt) {
   if (mode === "normal") { pupT -= dt; if (pupT <= 0 && pups.length < 4) { pupT = 5; const ty = ["fire", "nade", "shield", "revive", "blind"][Math.floor(rnd(0, 5))]; const p = spawn("mid"); pups.push({ x: p.x, y: p.y, ty }); } }
 
   for (const e of ents) {
-    if (!e.alive) { e.resp -= dt; if (e.resp <= 0) { e.alive = true; e.hp = e.maxhp; e.mag = 24; e.reloading = 0; const p = spawn(e.team); e.x = p.x; e.y = p.y; } continue; }
+    if (!e.alive) { if (!e.net) { e.resp -= dt; if (e.resp <= 0) { e.alive = true; e.hp = e.maxhp; e.mag = 24; e.reloading = 0; const p = spawn(e.team); e.x = p.x; e.y = p.y; } } continue; }
+    if (e.net) { e.x += (e.tx - e.x) * Math.min(1, dt * 12); e.y += (e.ty - e.y) * Math.min(1, dt * 12); continue; }
     for (const k in e.bf) if (e.bf[k] > 0) e.bf[k] -= dt;
     if (e.tp > 0) e.tp -= dt;
     else for (const s of stairs) if (Math.hypot(e.x - s.x, e.y - s.y) < 22) { e.x = s.tx; e.y = s.ty; e.tp = 1.2; break; }
@@ -226,7 +262,7 @@ function update(dt) {
     const bl = bullets[b]; bl.x += bl.vx * dt; bl.y += bl.vy * dt; bl.life -= dt;
     let dead = bl.life <= 0 || bl.x < 0 || bl.x > W || bl.y < 0 || bl.y > H;
     if (!dead) for (const w of walls) if (inR(bl.x, bl.y, w)) { dead = true; break; }
-    if (!dead) for (const e2 of ents) if (e2.alive && e2 !== bl.by && isEnemy(bl.by, e2) && dist(e2, bl) < e2.r) { hurt(e2, 22, bl.by); dead = true; break; }
+    if (!dead) for (const e2 of ents) { if (netMode && !e2.isP) continue; if (e2.alive && e2 !== bl.by && isEnemy(bl.by, e2) && dist(e2, bl) < e2.r) { hurt(e2, 22, bl.by); dead = true; break; } }
     if (dead) bullets.splice(b, 1);
   }
   for (let n = nades.length - 1; n >= 0; n--) {
@@ -234,6 +270,15 @@ function update(dt) {
     if (nd.t <= 0) { rings.push({ x: nd.x, y: nd.y, r: 8, max: 60, life: 0.35, col: "#FAC775", lw: 4 }); audio.boom(); for (const e3 of ents) if (e3.alive && e3.team !== nd.team && dist(e3, nd) < 60) hurt(e3, 55, null); nades.splice(n, 1); }
   }
   for (let p = pups.length - 1; p >= 0; p--) for (const e4 of ents) if (e4.alive && dist(e4, pups[p]) < e4.r + 8) { pickup(e4, pups[p].ty); pups.splice(p, 1); break; }
+
+  if (netMode && netSend) {
+    netClock -= dt;
+    if (netClock <= 0) {
+      netClock = 0.06;
+      const me = playerEnt();
+      if (me) netSend({ t: "state", s: { x: Math.round(me.x), y: Math.round(me.y), aim: me.aim, hp: me.hp, maxhp: me.maxhp, alive: me.alive, skin: me.skin, zskin: me.zskin, wp: me.wp, team: me.team, name: me.name } });
+    }
+  }
 }
 
 function allyOfPlayer(o) { const me = playerEnt(); if (!me) return true; if (mode === "koth") return o === me; return o.team === me.team; }
