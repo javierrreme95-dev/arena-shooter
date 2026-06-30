@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Arena Shooter</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <div class="brand">🔫 Arena Shooter</div>
+        <nav class="tabs">
+          <button class="tab active" data-view="play">Jugar</button>
+          <button class="tab" data-view="skins">Skins</button>
+          <button class="tab" data-view="bp">Pase de batalla</button>
+        </nav>
+        <div class="levelbadge">Nivel <span id="lvl">1</span></div>
+      </header>
+
+      <section id="view-play" class="view active">
+        <div class="modebar">
+          <button class="mb" data-m="normal">Normal</button>
+          <button class="mb" data-m="ctf">Captura la bandera</button>
+          <button class="mb" data-m="koth">Rey de la colina</button>
+          <button class="mb" data-m="inf">Infección</button>
+          <select id="sz"><option value="2">2v2</option><option value="3" selected>3v3</option><option value="4">4v4</option><option value="5">5v5</option></select>
+          <select id="kt"><option>15</option><option>20</option><option>30</option><option>40</option><option>50</option></select>
+        </div>
+        <div id="hud"><span id="hl"></span><span id="hr"></span></div>
+        <canvas id="g" width="660" height="460" tabindex="0"></canvas>
+        <div class="hint">WASD: mover · Mouse: apuntar · Clic: disparar · Teclas 1/2: arma/granada</div>
+      </section>
+
+      <section id="view-skins" class="view">
+        <h2>Tus skins</h2>
+        <div id="skingrid" class="grid"></div>
+      </section>
+
+      <section id="view-bp" class="view">
+        <div class="bphead">
+          <h2>Pase de batalla — temporada 1</h2>
+          <button id="buyprem" class="buy">Comprar pase premium</button>
+        </div>
+        <div id="bpbar"></div>
+        <div id="bptrack" class="track"></div>
+      </section>
+
+      <div id="toast" class="toast"></div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

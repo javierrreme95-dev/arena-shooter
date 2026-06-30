@@ -1,0 +1,86 @@
+:root {
+  --bg: #0d1426;
+  --panel: #16203a;
+  --panel2: #1e2b4a;
+  --line: #2c3b63;
+  --txt: #e6ecf7;
+  --muted: #8fa0c8;
+  --accent: #378ADD;
+  --gold: #FAC775;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--txt);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+#app { max-width: 760px; margin: 0 auto; padding: 12px; }
+
+.topbar { display: flex; align-items: center; gap: 12px; padding: 8px 4px 14px; }
+.brand { font-weight: 700; font-size: 18px; }
+.tabs { display: flex; gap: 6px; margin-left: auto; }
+.tab {
+  background: var(--panel); color: var(--muted); border: 1px solid var(--line);
+  padding: 7px 12px; border-radius: 8px; cursor: pointer; font-size: 14px;
+}
+.tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.levelbadge {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  padding: 7px 12px; font-size: 13px; color: var(--gold); font-weight: 600;
+}
+
+.view { display: none; }
+.view.active { display: block; }
+
+.modebar { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 8px; }
+.mb {
+  background: var(--panel2); color: var(--txt); border: 1px solid var(--line);
+  padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 14px;
+}
+.mb:hover { border-color: var(--accent); }
+.modebar select {
+  background: var(--panel2); color: var(--txt); border: 1px solid var(--line);
+  padding: 7px; border-radius: 8px; font-size: 14px;
+}
+#hud { display: flex; justify-content: space-between; align-items: center; font-size: 13px; min-height: 20px; margin: 4px 2px; }
+#hr { color: var(--muted); }
+canvas {
+  display: block; width: 660px; max-width: 100%; margin: 0 auto;
+  background: var(--panel); border-radius: 12px; cursor: crosshair;
+  outline: none; touch-action: none;
+}
+.hint { text-align: center; color: var(--muted); font-size: 12px; margin-top: 8px; }
+
+h2 { font-size: 18px; font-weight: 600; margin: 8px 2px 14px; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; text-align: center; }
+.card canvas { width: 70px; height: 70px; background: transparent; margin: 0 auto 6px; cursor: default; }
+.card .nm { font-size: 13px; font-weight: 600; }
+.card .rar { font-size: 11px; margin: 2px 0 8px; }
+.card button { width: 100%; border: none; border-radius: 7px; padding: 6px; font-size: 12px; cursor: pointer; }
+.btn-equip { background: var(--accent); color: #fff; }
+.btn-equipped { background: var(--panel2); color: var(--gold); border: 1px solid var(--gold) !important; }
+.btn-locked { background: var(--panel2); color: var(--muted); cursor: not-allowed; }
+
+.bphead { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.buy { background: var(--gold); color: #2c2c2a; font-weight: 600; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+#bpbar { height: 10px; background: var(--panel); border-radius: 6px; overflow: hidden; margin: 8px 2px 16px; }
+#bpbar > div { height: 100%; background: var(--accent); width: 0; }
+.track { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; }
+.tier { flex: 0 0 96px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px; text-align: center; }
+.tier.done { border-color: var(--gold); }
+.tier.cur { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.tier .tn { font-size: 11px; color: var(--muted); }
+.tier canvas { width: 54px; height: 54px; margin: 4px auto; background: transparent; }
+.tier .rl { font-size: 11px; }
+.tier .prem { font-size: 10px; color: var(--gold); }
+
+.toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+  background: var(--panel2); border: 1px solid var(--gold); color: var(--txt);
+  padding: 10px 16px; border-radius: 10px; font-size: 14px; opacity: 0;
+  transition: opacity .3s; pointer-events: none; max-width: 90%; text-align: center;
+}
+.toast.show { opacity: 1; }
