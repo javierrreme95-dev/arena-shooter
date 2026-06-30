@@ -139,6 +139,11 @@ export function netShot(id, x, y, ang) {
   bullets.push({ x, y, vx: Math.cos(ang) * 460, vy: Math.sin(ang) * 460, team, by: sh || { team }, life: 1.4 });
   parts.push({ x, y, vx: 0, vy: 0, life: 0.05, col: "#ffe8a0", sz: 7 });
 }
+export function netNade(id, tx, ty) {
+  if (!netMode || id === myNetId) return;
+  const sh = ents.find((p) => p.netId === id), team = sh ? sh.team : "B";
+  nades.push({ x: sh ? sh.x : tx, y: sh ? sh.y : ty, tx, ty, t: 0.7, team });
+}
 export function netLeft(id) { if (!netMode) return; const i = ents.findIndex((x) => x.netId === id); if (i >= 0) ents.splice(i, 1); }
 
 function newFlag() { const at = ctfTurns[ctfIdx]; flag = { x: at === "A" ? 20 : W - 20, y: H / 2, carrier: null, att: at }; }
@@ -152,7 +157,13 @@ function shoot(e, ang) {
   if (netMode && e.isP && netSend) netSend({ t: "shot", x: mx, y: my, ang });
 }
 function reload(e) { if (e.reloading > 0 || e.reserve <= 0 || e.mag >= 24) return; e.reloading = 1.3; if (e.isP) audio.reload(); }
-function throwNade(e) { if (e.gr <= 0) return; e.gr--; const ang = e.aim, d = Math.min(220, dist(e, { x: mouse.x + cam.x, y: mouse.y + cam.y })); nades.push({ x: e.x, y: e.y, tx: e.x + Math.cos(ang) * d, ty: e.y + Math.sin(ang) * d, t: 0.7, team: e.team }); }
+function throwNade(e) {
+  if (e.gr <= 0) return; e.gr--;
+  const ang = e.aim, d = Math.min(220, dist(e, { x: mouse.x + cam.x, y: mouse.y + cam.y }));
+  const tx = e.x + Math.cos(ang) * d, ty = e.y + Math.sin(ang) * d;
+  nades.push({ x: e.x, y: e.y, tx, ty, t: 0.7, team: e.team });
+  if (netMode && e.isP && netSend) netSend({ t: "nade", tx: Math.round(tx), ty: Math.round(ty) });
+}
 function hurt(e, dmg, by) { if (e.bf.sh > 0 && e.shp > 0) { e.shp -= dmg; if (e.shp < 0) { e.hp += e.shp; e.shp = 0; } } else e.hp -= dmg; if (e.hp <= 0 && e.alive) die(e, by); }
 
 function spawnDeath(e) {
@@ -268,7 +279,7 @@ function update(dt) {
   }
   for (let n = nades.length - 1; n >= 0; n--) {
     const nd = nades[n]; nd.t -= dt; nd.x += (nd.tx - nd.x) * Math.min(1, dt * 4); nd.y += (nd.ty - nd.y) * Math.min(1, dt * 4);
-    if (nd.t <= 0) { rings.push({ x: nd.x, y: nd.y, r: 8, max: 60, life: 0.35, col: "#FAC775", lw: 4 }); audio.boom(); for (const e3 of ents) if (e3.alive && e3.team !== nd.team && dist(e3, nd) < 60) hurt(e3, 55, null); nades.splice(n, 1); }
+    if (nd.t <= 0) { rings.push({ x: nd.x, y: nd.y, r: 8, max: 60, life: 0.35, col: "#FAC775", lw: 4 }); audio.boom(); for (const e3 of ents) { if (netMode && !e3.isP) continue; if (e3.alive && e3.team !== nd.team && dist(e3, nd) < 60) hurt(e3, 55, null); } nades.splice(n, 1); }
   }
   for (let p = pups.length - 1; p >= 0; p--) for (const e4 of ents) if (e4.alive && dist(e4, pups[p]) < e4.r + 8) { pickup(e4, pups[p].ty); pups.splice(p, 1); break; }
 

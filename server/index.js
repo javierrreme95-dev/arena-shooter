@@ -95,6 +95,8 @@ wss.on("connection", (ws) => {
       const room = rooms.get(ws.room); if (room) broadcast(room, { t: "state", id: ws.id, s: m.s }, ws.id);
     } else if (m.t === "shot") {
       const room = rooms.get(ws.room); if (room) broadcast(room, { t: "shot", id: ws.id, x: m.x, y: m.y, ang: m.ang }, ws.id);
+    } else if (m.t === "nade") {
+      const room = rooms.get(ws.room); if (room) broadcast(room, { t: "nade", id: ws.id, tx: m.tx, ty: m.ty }, ws.id);
     } else if (m.t === "leave") { leaveRoom(ws); }
   });
   ws.on("close", () => leaveRoom(ws));

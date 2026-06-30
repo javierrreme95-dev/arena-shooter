@@ -135,6 +135,7 @@ function setupNetHandlers() {
   net.on("left", (m) => game.netLeft && game.netLeft(m.id));
   net.on("state", (m) => game.netState(m.id, m.s));
   net.on("shot", (m) => game.netShot(m.id, m.x, m.y, m.ang));
+  net.on("nade", (m) => game.netNade(m.id, m.tx, m.ty));
   net.on("start", (m) => {
     const myTeam = m.teams[net.myId()] || "A";
     game.startOnline({ mode: m.mode, size: m.size, myId: net.myId(), team: myTeam, name: P.getSetting("username"), send: (o) => net.send(o) });
