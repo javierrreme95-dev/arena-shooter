@@ -18,6 +18,7 @@ let state = load() || {
 };
 if (!state.settings) state.settings = { ally: "azul", enemy: "rojo", keySwitch: "q", keyReload: "r" };
 if (!state.unlockedDeaths) state.unlockedDeaths = DEFAULT_DEATHS.slice();
+if (!state.settings.username) state.settings.username = "Jugador" + Math.floor(1000 + Math.random() * 9000);
 
 function save() { localStorage.setItem(KEY, JSON.stringify(state)); }
 
@@ -31,6 +32,9 @@ export function isDeathUnlocked(id) { return state.unlockedDeaths.includes(id); 
 export function isPremium() { return state.premium; }
 export function getSetting(k) { return state.settings[k]; }
 export function setSetting(k, v) { state.settings[k] = v; save(); }
+export function getFriends() { if (!state.friends) state.friends = []; return state.friends; }
+export function addFriend(name) { const f = getFriends(); if (name && !f.includes(name)) { f.push(name); save(); return true; } return false; }
+export function removeFriend(name) { state.friends = getFriends().filter((n) => n !== name); save(); }
 
 export function levelFromXp(xp) { return Math.min(MAXLV, Math.floor(xp / XP_PER) + 1); }
 export function xpInLevel() { return state.xp - (state.level - 1) * XP_PER; }

@@ -15,6 +15,7 @@ function refreshUI() {
   bp.renderBP($("bpbar"), $("bptrack"));
   renderOptions();
   renderControls();
+  renderLobby();
 }
 
 function renderOptions() {
@@ -90,6 +91,51 @@ $("buyprem").addEventListener("click", () => {
 
 bindKey($("bind-sw"), "keySwitch");
 bindKey($("bind-rl"), "keyReload");
+
+let roomCode = "------";
+function genCode() { const ch = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; return Array.from({ length: 6 }, () => ch[Math.floor(Math.random() * ch.length)]).join(""); }
+
+function renderLobby() {
+  $("username").value = P.getSetting("username");
+  $("roomcode").textContent = roomCode;
+  const pl = $("playerlist");
+  pl.innerHTML = "";
+  const me = document.createElement("div"); me.className = "card"; me.style.textAlign = "left";
+  me.innerHTML = '<b>' + P.getSetting("username") + '</b> <span class="rar" style="color:#5DCAA5">anfitrión</span>';
+  pl.appendChild(me);
+  const wait = document.createElement("div"); wait.className = "card"; wait.style.textAlign = "left";
+  wait.innerHTML = '<span class="muted">Esperando jugadores… comparte el código</span>';
+  pl.appendChild(wait);
+
+  const fl = $("friendlist"); fl.innerHTML = "";
+  const friends = P.getFriends();
+  if (!friends.length) { const e = document.createElement("div"); e.className = "card"; e.innerHTML = '<span class="muted">Sin amigos aún</span>'; fl.appendChild(e); }
+  friends.forEach((n) => {
+    const c = document.createElement("div"); c.className = "card"; c.style.textAlign = "left";
+    c.innerHTML = '<b>' + n + '</b>';
+    const b = document.createElement("button"); b.className = "btn-locked"; b.textContent = "Quitar"; b.style.marginTop = "6px";
+    b.onclick = () => { P.removeFriend(n); renderLobby(); };
+    c.appendChild(b); fl.appendChild(c);
+  });
+}
+
+$("username").addEventListener("input", (e) => { P.setSetting("username", e.target.value || "Jugador"); });
+$("newcode").addEventListener("click", () => { roomCode = genCode(); renderLobby(); });
+$("copycode").addEventListener("click", () => {
+  if (roomCode === "------") roomCode = genCode();
+  navigator.clipboard?.writeText(roomCode); renderLobby(); toast("Código copiado: " + roomCode);
+});
+$("wainvite").addEventListener("click", () => {
+  if (roomCode === "------") { roomCode = genCode(); renderLobby(); }
+  const url = location.origin + "/?room=" + roomCode;
+  const txt = "¡Únete a mi partida en Arena Shooter! 🎮 Código: " + roomCode + "  " + url;
+  window.open("https://wa.me/?text=" + encodeURIComponent(txt), "_blank");
+});
+$("addfriend").addEventListener("click", () => {
+  const n = $("friendname").value.trim();
+  if (P.addFriend(n)) { $("friendname").value = ""; renderLobby(); toast("Amigo agregado: " + n); }
+  else toast("Escribe un usuario válido (o ya está en tu lista)");
+});
 
 $("unlockall").addEventListener("click", () => {
   P.unlockAll(SKINS.map((s) => s.id), DEATH_ANIMS.map((d) => d.id));

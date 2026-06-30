@@ -11,6 +11,7 @@
         <div class="brand">🔫 Arena Shooter</div>
         <nav class="tabs">
           <button class="tab active" data-view="play">Jugar</button>
+          <button class="tab" data-view="lobby">Lobby</button>
           <button class="tab" data-view="skins">Skins</button>
           <button class="tab" data-view="bp">Pase</button>
           <button class="tab" data-view="opt">Opciones</button>
@@ -32,6 +33,40 @@
         <div id="hud"><span id="hl"></span><span id="hr"></span></div>
         <canvas id="g" width="660" height="460" tabindex="0"></canvas>
         <div class="hint">WASD: mover · Mouse: apuntar · Clic: disparar · <b id="hk-sw">Q</b>: cambiar arma · <b id="hk-rl">R</b>: recargar</div>
+      </section>
+
+      <section id="view-lobby" class="view">
+        <h2>Lobby</h2>
+        <div class="optrow">
+          <span>Tu nombre de usuario</span>
+          <input id="username" style="max-width:220px;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:14px" />
+        </div>
+        <div class="optrow">
+          <span>Código de sala</span>
+          <span><code id="roomcode" style="font-size:18px;letter-spacing:3px;color:var(--gold)">------</code> <button id="newcode" class="keybtn" style="min-width:auto">Generar</button></span>
+        </div>
+        <div class="optrow">
+          <span>Invitar amigos</span>
+          <span style="display:flex;gap:8px">
+            <button id="copycode" class="keybtn" style="min-width:auto">📋 Copiar código</button>
+            <button id="wainvite" class="buy" style="padding:7px 12px">🟢 Invitar por WhatsApp</button>
+          </span>
+        </div>
+        <div class="optrow">
+          <span>Agregar amigo por usuario</span>
+          <span style="display:flex;gap:8px">
+            <input id="friendname" placeholder="nombre de usuario" style="max-width:180px;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:14px" />
+            <button id="addfriend" class="keybtn" style="min-width:auto">Agregar</button>
+          </span>
+        </div>
+
+        <h2 style="margin-top:18px">Jugadores en la sala</h2>
+        <div id="playerlist" class="grid" style="grid-template-columns:1fr;gap:8px"></div>
+
+        <h2 style="margin-top:18px">Amigos</h2>
+        <div id="friendlist" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px"></div>
+
+        <p class="muted" style="font-size:13px;margin-top:14px">⚠️ Vista previa del lobby. Que se unan otros jugadores de verdad por el código y verte en línea requiere el servidor (siguiente fase). Aquí ya funciona: cambiar tu nombre, generar código, invitar por WhatsApp y tu lista de amigos local.</p>
       </section>
 
       <section id="view-skins" class="view">
