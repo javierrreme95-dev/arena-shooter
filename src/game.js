@@ -2,18 +2,37 @@ import { getSkin, drawSoldier, randomBotSkin, getDeath, getZombie, randomZombie,
 import * as P from "./progress.js";
 import * as audio from "./audio.js";
 
-let cv, ctx, W, H, cb = {};
+let cv, ctx, W, H, VW, VH, cb = {};
+const cam = { x: 0, y: 0 };
+let floorType = "concrete", stairs = [];
 let mode = "normal", state = "menu";
 let ents = [], bullets = [], nades = [], pups = [], parts = [], rings = [], floats = [], feed = [];
 let scoreA = 0, scoreB = 0, cfgKill = 15, timer = 0, hill = null, flag = null, ctfTurns = [], ctfIdx = 0, pupT = 0, hillMove = 0, over = null;
 const keys = {}, mouse = { x: 330, y: 230, down: false };
 const RESP = 8;
 const MAPS = [
-  [{ x: 300, y: 70, w: 60, h: 90 }, { x: 300, y: 300, w: 60, h: 90 }, { x: 120, y: 200, w: 90, h: 55 }, { x: 450, y: 200, w: 90, h: 55 }],
-  [{ x: 150, y: 60, w: 50, h: 160 }, { x: 460, y: 240, w: 50, h: 160 }, { x: 290, y: 195, w: 80, h: 70 }],
-  [{ x: 90, y: 110, w: 130, h: 40 }, { x: 440, y: 110, w: 130, h: 40 }, { x: 90, y: 310, w: 130, h: 40 }, { x: 440, y: 310, w: 130, h: 40 }, { x: 305, y: 200, w: 50, h: 60 }],
+  {
+    floor: "concrete",
+    walls: [
+      { x: 250, y: 120, w: 30, h: 200 }, { x: 820, y: 120, w: 30, h: 200 },
+      { x: 250, y: 440, w: 30, h: 200 }, { x: 820, y: 440, w: 30, h: 200 },
+      { x: 500, y: 340, w: 100, h: 80 },
+      { x: 120, y: 360, w: 120, h: 30 }, { x: 860, y: 360, w: 120, h: 30 },
+    ],
+    stairs: [{ x: 80, y: 80, tx: 1020, ty: 680 }, { x: 1020, y: 680, tx: 80, ty: 80 }],
+  },
+  {
+    floor: "grass",
+    walls: [
+      { x: 300, y: 200, w: 220, h: 30 }, { x: 600, y: 530, w: 220, h: 30 },
+      { x: 200, y: 400, w: 30, h: 170 }, { x: 880, y: 200, w: 30, h: 170 },
+      { x: 520, y: 330, w: 70, h: 110 },
+    ],
+    stairs: [{ x: 90, y: 680, tx: 1010, ty: 80 }, { x: 1010, y: 80, tx: 90, ty: 680 }],
+  },
 ];
-let walls = MAPS[0];
+let walls = MAPS[0].walls;
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const ALLYC = { azul: "#378ADD", verde: "#5DCAA5" };
 const ENEMYC = { rojo: "#E24B4A", negro: "#0e131c" };
 
@@ -30,14 +49,14 @@ function spawn(team) {
 }
 function mkE(team, isP, smul, name) {
   const p = spawn(team);
-  return { x: p.x, y: p.y, r: 13, team, isP, name, hp: 100, maxhp: 100, aim: 0, cd: 0, alive: true, resp: 0, dx: p.x, dy: p.y, kills: 0, points: 0, smul: smul || 1, bf: { fire: 0, sh: 0, bl: 0 }, shp: 0, wp: "gun", gr: 0, carry: false, skin: isP ? P.getEquipped() : randomBotSkin(), zskin: "clasico", mag: 24, reserve: 120, reloading: 0 };
+  return { x: p.x, y: p.y, r: 13, team, isP, name, hp: 100, maxhp: 100, aim: 0, cd: 0, alive: true, resp: 0, dx: p.x, dy: p.y, kills: 0, points: 0, smul: smul || 1, bf: { fire: 0, sh: 0, bl: 0 }, shp: 0, wp: "gun", gr: 0, carry: false, skin: isP ? P.getEquipped() : randomBotSkin(), zskin: "clasico", mag: 24, reserve: 120, reloading: 0, tp: 0 };
 }
 function isEnemy(a, b) { if (mode === "koth") return a !== b; return a.team !== b.team; }
 function nEnemy(e) { let best = null, bd = 1e9; for (const o of ents) if (o.alive && isEnemy(e, o)) { const d = dist(e, o); if (d < bd) { bd = d; best = o; } } return best; }
 function playerEnt() { return ents.find((e) => e.isP); }
 
 export function init(canvas, callbacks) {
-  cv = canvas; ctx = cv.getContext("2d"); W = cv.width; H = cv.height; cb = callbacks || {};
+  cv = canvas; ctx = cv.getContext("2d"); VW = cv.width; VH = cv.height; W = 1100; H = 760; cb = callbacks || {};
   window.addEventListener("keydown", (e) => {
     const k = e.key.toLowerCase(); keys[k] = true;
     const me = playerEnt();
@@ -64,7 +83,8 @@ export function start(m, cfg) {
   mode = m; bullets = []; nades = []; pups = []; parts = []; rings = []; floats = []; feed = [];
   over = null; scoreA = 0; scoreB = 0; timer = 0; flag = null; hill = null; pupT = 2; hillMove = 0;
   cfgKill = (cfg && cfg.kill) || 15;
-  walls = MAPS[Math.floor(Math.random() * MAPS.length)];
+  const _m = MAPS[Math.floor(Math.random() * MAPS.length)];
+  walls = _m.walls; floorType = _m.floor; stairs = _m.stairs;
   if (m === "normal") {
     const s = (cfg && cfg.size) || 3;
     ents = [mkE("A", true, 1, "TÚ")];
@@ -98,7 +118,7 @@ function shoot(e, ang) {
   if (e.isP) audio.shoot();
 }
 function reload(e) { if (e.reloading > 0 || e.reserve <= 0 || e.mag >= 24) return; e.reloading = 1.3; if (e.isP) audio.reload(); }
-function throwNade(e) { if (e.gr <= 0) return; e.gr--; const ang = e.aim, d = Math.min(220, dist(e, { x: mouse.x, y: mouse.y })); nades.push({ x: e.x, y: e.y, tx: e.x + Math.cos(ang) * d, ty: e.y + Math.sin(ang) * d, t: 0.7, team: e.team }); }
+function throwNade(e) { if (e.gr <= 0) return; e.gr--; const ang = e.aim, d = Math.min(220, dist(e, { x: mouse.x + cam.x, y: mouse.y + cam.y })); nades.push({ x: e.x, y: e.y, tx: e.x + Math.cos(ang) * d, ty: e.y + Math.sin(ang) * d, t: 0.7, team: e.team }); }
 function hurt(e, dmg, by) { if (e.bf.sh > 0 && e.shp > 0) { e.shp -= dmg; if (e.shp < 0) { e.hp += e.shp; e.shp = 0; } } else e.hp -= dmg; if (e.hp <= 0 && e.alive) die(e, by); }
 
 function spawnDeath(e) {
@@ -147,6 +167,8 @@ function ctfBot(e, dt) {
 }
 
 function update(dt) {
+  const meCam = playerEnt();
+  if (meCam) { cam.x = clamp(meCam.x - VW / 2, 0, W - VW); cam.y = clamp(meCam.y - VH / 2, 0, H - VH); }
   for (const f of parts) { f.x += f.vx * dt; f.y += f.vy * dt; f.life -= dt; f.vx *= 0.96; f.vy *= 0.96; }
   for (let i = parts.length - 1; i >= 0; i--) if (parts[i].life <= 0) parts.splice(i, 1);
   for (const rg of rings) { rg.r += (rg.max - rg.r) * dt * 7; rg.life -= dt; }
@@ -165,13 +187,15 @@ function update(dt) {
   for (const e of ents) {
     if (!e.alive) { e.resp -= dt; if (e.resp <= 0) { e.alive = true; e.hp = e.maxhp; e.mag = 24; e.reloading = 0; const p = spawn(e.team); e.x = p.x; e.y = p.y; } continue; }
     for (const k in e.bf) if (e.bf[k] > 0) e.bf[k] -= dt;
+    if (e.tp > 0) e.tp -= dt;
+    else for (const s of stairs) if (Math.hypot(e.x - s.x, e.y - s.y) < 22) { e.x = s.tx; e.y = s.ty; e.tp = 1.2; break; }
     if (e.reloading > 0) { e.reloading -= dt; if (e.reloading <= 0) { const need = 24 - e.mag, take = Math.min(need, e.reserve); e.mag += take; e.reserve -= take; } }
     const sp = 150 * e.smul;
     if (e.isP) {
       let dx = 0, dy = 0;
       if (keys.w || keys.arrowup) dy--; if (keys.s || keys.arrowdown) dy++; if (keys.a || keys.arrowleft) dx--; if (keys.d || keys.arrowright) dx++;
       const m = Math.hypot(dx, dy) || 1; moveC(e, (dx / m) * sp * dt, (dy / m) * sp * dt);
-      e.aim = Math.atan2(mouse.y - e.y, mouse.x - e.x); e.cd -= dt;
+      e.aim = Math.atan2(mouse.y + cam.y - e.y, mouse.x + cam.x - e.x); e.cd -= dt;
       if (mouse.down && e.cd <= 0 && e.wp !== "none") {
         if (e.wp === "nade") { throwNade(e); e.cd = 0.5; if (e.gr === 0) e.wp = "gun"; }
         else if (e.reloading <= 0) { if (e.mag > 0) { shoot(e, e.aim); e.mag--; e.cd = fcd(e); if (e.mag === 0) reload(e); } else reload(e); }
@@ -235,22 +259,51 @@ function drawFlag(x, y, col) {
   ctx.fillStyle = "rgba(255,255,255,0.9)"; ctx.font = "700 9px sans-serif"; ctx.textAlign = "center"; ctx.fillText("★", x + 10, y - 9);
 }
 
+function drawFloor() {
+  const cs = 40, x0 = Math.floor(cam.x / cs) * cs, y0 = Math.floor(cam.y / cs) * cs;
+  for (let x = x0; x < cam.x + VW; x += cs) for (let y = y0; y < cam.y + VH; y += cs) {
+    const odd = (x / cs + y / cs) % 2 === 0;
+    ctx.fillStyle = floorType === "grass" ? (odd ? "#3a5a32" : "#33512c") : (odd ? "#3a4254" : "#343b4b");
+    ctx.fillRect(x, y, cs, cs);
+  }
+}
+function drawWalls() {
+  for (const r of walls) {
+    ctx.fillStyle = "#5b6470"; ctx.fillRect(r.x, r.y, r.w, r.h);
+    ctx.fillStyle = "#727c8a"; ctx.fillRect(r.x, r.y, r.w, 5);
+    ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.fillRect(r.x, r.y + r.h - 5, r.w, 5);
+    ctx.strokeStyle = "#2b3038"; ctx.lineWidth = 2; ctx.strokeRect(r.x, r.y, r.w, r.h);
+  }
+}
+function drawStairs() {
+  for (const s of stairs) {
+    ctx.fillStyle = "rgba(250,199,117,0.16)"; ctx.fillRect(s.x - 18, s.y - 18, 36, 36);
+    ctx.strokeStyle = "#FAC775"; ctx.lineWidth = 2; ctx.strokeRect(s.x - 18, s.y - 18, 36, 36);
+    ctx.strokeStyle = "rgba(250,199,117,0.7)";
+    for (let i = -10; i <= 10; i += 6) { ctx.beginPath(); ctx.moveTo(s.x - 12, s.y + i); ctx.lineTo(s.x + 12, s.y + i); ctx.stroke(); }
+    ctx.fillStyle = "#FAC775"; ctx.beginPath(); ctx.moveTo(s.x, s.y - 24); ctx.lineTo(s.x - 6, s.y - 18); ctx.lineTo(s.x + 6, s.y - 18); ctx.closePath(); ctx.fill();
+  }
+}
+
 function draw() {
   const t = nowS();
-  ctx.clearRect(0, 0, W, H);
+  ctx.clearRect(0, 0, VW, VH);
   if (state === "menu") {
+    ctx.fillStyle = "#16203a"; ctx.fillRect(0, 0, VW, VH);
     ctx.fillStyle = "#cdd6ee"; ctx.textAlign = "center"; ctx.font = "600 22px sans-serif";
-    ctx.fillText("Elige un modo arriba para jugar", W / 2, H / 2 - 6);
+    ctx.fillText("Elige un modo arriba para jugar", VW / 2, VH / 2 - 6);
     ctx.font = "14px sans-serif"; ctx.fillStyle = "#8fa0c8";
-    ctx.fillText("Tus skins se ven en la partida · gana XP para tu pase", W / 2, H / 2 + 20);
+    ctx.fillText("Tus skins se ven en la partida · gana XP para tu pase", VW / 2, VH / 2 + 20);
     return;
   }
-  ctx.fillStyle = "rgba(255,255,255,0.04)";
-  for (let gx = 0; gx < W; gx += 44) ctx.fillRect(gx, 0, 1, H);
-  for (let gy = 0; gy < H; gy += 44) ctx.fillRect(0, gy, W, 1);
-  if (mode === "ctf") { ctx.fillStyle = "rgba(55,138,221,0.18)"; ctx.fillRect(0, H / 2 - 55, 42, 110); ctx.fillStyle = "rgba(226,75,74,0.18)"; ctx.fillRect(W - 42, H / 2 - 55, 42, 110); }
+  ctx.save();
+  ctx.translate(-cam.x, -cam.y);
+  drawFloor();
+  ctx.strokeStyle = "#20242e"; ctx.lineWidth = 6; ctx.strokeRect(0, 0, W, H);
+  if (mode === "ctf") { ctx.fillStyle = "rgba(55,138,221,0.18)"; ctx.fillRect(0, H / 2 - 60, 42, 120); ctx.fillStyle = "rgba(226,75,74,0.18)"; ctx.fillRect(W - 42, H / 2 - 60, 42, 120); }
   if (mode === "koth" && hill) { const ins = ents.filter((o) => o.alive && dist(o, hill) < hill.r); ctx.fillStyle = ins.length === 1 ? "rgba(93,202,165,0.22)" : "rgba(239,159,39,0.18)"; ctx.beginPath(); ctx.arc(hill.x, hill.y, hill.r, 0, 6.283); ctx.fill(); ctx.strokeStyle = ins.length === 1 ? "#5DCAA5" : "#EF9F27"; ctx.lineWidth = 2; ctx.stroke(); }
-  ctx.fillStyle = "#2c3b63"; for (const r of walls) ctx.fillRect(r.x, r.y, r.w, r.h);
+  drawStairs();
+  drawWalls();
   for (const pu of pups) drawPup(pu.x, pu.y, pu.ty);
   for (const nd of nades) { ctx.fillStyle = "#cfcfc6"; ctx.beginPath(); ctx.arc(nd.x, nd.y, 5, 0, 6.283); ctx.fill(); }
   for (const bl of bullets) { ctx.fillStyle = "#ffe8a0"; ctx.beginPath(); ctx.arc(bl.x, bl.y, 3, 0, 6.283); ctx.fill(); }
@@ -280,16 +333,18 @@ function draw() {
   for (const f of parts) { ctx.globalAlpha = Math.max(0, f.life); ctx.fillStyle = f.col; const s = f.sz || 4; ctx.fillRect(f.x - s / 2, f.y - s / 2, s, s); ctx.globalAlpha = 1; }
   for (const ft of floats) { ctx.globalAlpha = Math.max(0, ft.life); ctx.fillStyle = ft.col; ctx.font = "700 16px sans-serif"; ctx.textAlign = "center"; ctx.fillText(ft.txt, ft.x, ft.y); ctx.globalAlpha = 1; }
 
+  ctx.restore();
+
   ctx.textAlign = "right"; ctx.font = "12px sans-serif";
-  for (let i = 0; i < feed.length; i++) { ctx.globalAlpha = Math.min(1, feed[i].life); ctx.fillStyle = "#dbe3f5"; ctx.fillText(feed[i].txt, W - 8, 16 + i * 16); ctx.globalAlpha = 1; }
+  for (let i = 0; i < feed.length; i++) { ctx.globalAlpha = Math.min(1, feed[i].life); ctx.fillStyle = "#dbe3f5"; ctx.fillText(feed[i].txt, VW - 8, 16 + i * 16); ctx.globalAlpha = 1; }
 
   const me = playerEnt();
   if (me && me.alive) {
     ctx.textAlign = "left"; ctx.font = "700 13px sans-serif";
     ctx.fillStyle = me.wp === "gun" ? "#ffe8a0" : "#cfcfc6";
-    ctx.fillText("Balas " + (me.reloading > 0 ? "recargando…" : me.mag + " / " + me.reserve), 10, H - 24);
+    ctx.fillText("Balas " + (me.reloading > 0 ? "recargando…" : me.mag + " / " + me.reserve), 10, VH - 24);
     ctx.fillStyle = me.wp === "nade" ? "#5DCAA5" : "#9fb0d6";
-    ctx.fillText("Granadas " + me.gr + (me.wp === "nade" ? "  (activo)" : ""), 10, H - 8);
+    ctx.fillText("Granadas " + me.gr + (me.wp === "nade" ? "  (activo)" : ""), 10, VH - 8);
   }
   ctx.strokeStyle = "rgba(255,255,255,0.7)"; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 8, 0, 6.283); ctx.stroke();
@@ -299,10 +354,10 @@ function draw() {
   ctx.moveTo(mouse.x, mouse.y - 13); ctx.lineTo(mouse.x, mouse.y - 4);
   ctx.moveTo(mouse.x, mouse.y + 4); ctx.lineTo(mouse.x, mouse.y + 13);
   ctx.stroke();
-  if (me && me.alive && me.bf.bl > 0) { const g = ctx.createRadialGradient(me.x, me.y, 40, me.x, me.y, 260); g.addColorStop(0, "rgba(10,12,24,0)"); g.addColorStop(1, "rgba(8,10,20,0.92)"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); }
-  if (me && !me.alive && state === "play" && !over) { ctx.fillStyle = "rgba(10,14,28,0.55)"; ctx.fillRect(0, H / 2 - 34, W, 68); ctx.fillStyle = "#fff"; ctx.font = "600 22px sans-serif"; ctx.textAlign = "center"; ctx.fillText("Reapareces en " + Math.ceil(me.resp) + "…", W / 2, H / 2 + 7); }
+  if (me && me.alive && me.bf.bl > 0) { const sx = me.x - cam.x, sy = me.y - cam.y; const g = ctx.createRadialGradient(sx, sy, 40, sx, sy, 260); g.addColorStop(0, "rgba(10,12,24,0)"); g.addColorStop(1, "rgba(8,10,20,0.92)"); ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH); }
+  if (me && !me.alive && state === "play" && !over) { ctx.fillStyle = "rgba(10,14,28,0.55)"; ctx.fillRect(0, VH / 2 - 34, VW, 68); ctx.fillStyle = "#fff"; ctx.font = "600 22px sans-serif"; ctx.textAlign = "center"; ctx.fillText("Reapareces en " + Math.ceil(me.resp) + "…", VW / 2, VH / 2 + 7); }
 
-  if (over) { ctx.fillStyle = "rgba(10,14,28,0.8)"; ctx.fillRect(0, 0, W, H); ctx.fillStyle = "#fff"; ctx.font = "600 28px sans-serif"; ctx.textAlign = "center"; ctx.fillText(over, W / 2, H / 2); ctx.fillStyle = "#cdd6ee"; ctx.font = "14px sans-serif"; ctx.fillText("Elige un modo arriba para jugar otra vez", W / 2, H / 2 + 28); }
+  if (over) { ctx.fillStyle = "rgba(10,14,28,0.8)"; ctx.fillRect(0, 0, VW, VH); ctx.fillStyle = "#fff"; ctx.font = "600 28px sans-serif"; ctx.textAlign = "center"; ctx.fillText(over, VW / 2, VH / 2); ctx.fillStyle = "#cdd6ee"; ctx.font = "14px sans-serif"; ctx.fillText("Elige un modo arriba para jugar otra vez", VW / 2, VH / 2 + 28); }
   hud();
 }
 
