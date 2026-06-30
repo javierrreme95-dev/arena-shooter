@@ -178,6 +178,7 @@ function pickup(e, ty) {
   else if (ty === "shield") { e.bf.sh = 6; e.shp = 60; }
   else if (ty === "revive") { for (const o of ents) if (o.team === e.team && !o.alive) { o.alive = true; o.hp = o.maxhp; o.resp = 0; const p = spawn(o.team); o.x = p.x; o.y = p.y; break; } }
   else if (ty === "blind") { for (const o of ents) if (isEnemy(e, o)) o.bf.bl = 5; }
+  else if (ty === "ammo") { e.reserve = Math.min(300, e.reserve + 96); e.mag = 24; e.reloading = 0; }
 }
 function moveC(e, dx, dy) {
   let nx = e.x + dx; if (nx > e.r && nx < W - e.r) { let h = false; for (const r of walls) if (nx + e.r > r.x && nx - e.r < r.x + r.w && e.y + e.r > r.y && e.y - e.r < r.y + r.h) { h = true; break; } if (!h) e.x = nx; }
@@ -217,7 +218,7 @@ function update(dt) {
 
   if (mode === "koth") { hillMove -= dt; if (hillMove <= 0) { hillMove = 18; hill.x = rnd(120, W - 120); hill.y = rnd(90, H - 90); } }
   if (mode === "ctf" || mode === "inf") { timer -= dt; if (timer <= 0) { if (mode === "ctf") nextTurn(); else { const sv = ents.filter((o) => o.team === "S").length; endGame(sv > 0 ? "Sobrevivieron los humanos" : "Ganaron los infectados"); } } }
-  if (mode === "normal") { pupT -= dt; if (pupT <= 0 && pups.length < 4) { pupT = 5; const ty = ["fire", "nade", "shield", "revive", "blind"][Math.floor(rnd(0, 5))]; const p = spawn("mid"); pups.push({ x: p.x, y: p.y, ty }); } }
+  if (mode === "normal") { pupT -= dt; if (pupT <= 0 && pups.length < 4) { pupT = 5; const ty = ["fire", "nade", "shield", "revive", "blind", "ammo"][Math.floor(rnd(0, 6))]; const p = spawn("mid"); pups.push({ x: p.x, y: p.y, ty }); } }
 
   for (const e of ents) {
     if (!e.alive) { if (!e.net) { e.resp -= dt; if (e.resp <= 0) { e.alive = true; e.hp = e.maxhp; e.mag = 24; e.reloading = 0; const p = spawn(e.team); e.x = p.x; e.y = p.y; } } continue; }
@@ -284,7 +285,7 @@ function update(dt) {
 function allyOfPlayer(o) { const me = playerEnt(); if (!me) return true; if (mode === "koth") return o === me; return o.team === me.team; }
 function barCol(o) { return allyOfPlayer(o) ? ALLYC[P.getSetting("ally")] || ALLYC.azul : ENEMYC[P.getSetting("enemy")] || ENEMYC.rojo; }
 
-const PUPC = { fire: "#EF9F27", nade: "#5DCAA5", shield: "#85B7EB", revive: "#ED93B1", blind: "#7F77DD" };
+const PUPC = { fire: "#EF9F27", nade: "#5DCAA5", shield: "#85B7EB", revive: "#ED93B1", blind: "#7F77DD", ammo: "#ffe08a" };
 function drawPup(x, y, ty) {
   ctx.save(); ctx.translate(x, y);
   ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.beginPath(); ctx.arc(0, 0, 13, 0, 6.283); ctx.fill();
@@ -294,6 +295,7 @@ function drawPup(x, y, ty) {
   else if (ty === "shield") { ctx.beginPath(); ctx.moveTo(0, -7); ctx.lineTo(6, -4); ctx.lineTo(6, 2); ctx.lineTo(0, 7); ctx.lineTo(-6, 2); ctx.lineTo(-6, -4); ctx.closePath(); ctx.fill(); }
   else if (ty === "revive") { ctx.fillRect(-2, -6, 4, 12); ctx.fillRect(-6, -2, 12, 4); }
   else if (ty === "blind") { ctx.beginPath(); ctx.ellipse(0, 0, 7, 4, 0, 0, 6.283); ctx.stroke(); ctx.beginPath(); ctx.arc(0, 0, 2, 0, 6.283); ctx.fill(); ctx.beginPath(); ctx.moveTo(-7, -5); ctx.lineTo(7, 5); ctx.stroke(); }
+  else if (ty === "ammo") { for (let k = -1; k <= 1; k++) { ctx.fillRect(k * 4 - 1.3, -1, 2.6, 7); ctx.beginPath(); ctx.moveTo(k * 4 - 1.3, -1); ctx.lineTo(k * 4, -4); ctx.lineTo(k * 4 + 1.3, -1); ctx.closePath(); ctx.fill(); } }
   ctx.restore();
 }
 
