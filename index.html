@@ -14,136 +14,172 @@
   </head>
   <body>
     <div id="app">
-      <header class="topbar">
-        <div class="brand">🔫 Arena Shooter</div>
-        <nav class="tabs">
-          <button class="tab active" data-view="play">Jugar</button>
-          <button class="tab" data-view="skins">Skins</button>
-          <button class="tab" data-view="bp">Pase</button>
-          <button class="tab" data-view="opt">Opciones</button>
-          <button class="tab" data-view="ctrl">Controles</button>
-          <button class="tab" data-view="cred">Créditos</button>
-        </nav>
-        <div class="levelbadge">Nv <span id="lvl">1</span></div>
-      </header>
+      <canvas id="g" width="660" height="460" tabindex="0"></canvas>
 
-      <section id="view-play" class="view active">
-        <div class="hub">
-          <button class="hubb active" data-sub="local">🤖 Juego local</button>
-          <button class="hubb" data-sub="friends">👥 Jugar con amigos</button>
-          <button class="hubb" data-sub="match">🌐 Matchmaking</button>
-        </div>
+      <!-- HUD en partida (sin botones) -->
+      <div id="hud"><span id="hl"></span><span id="hr"></span></div>
+      <div id="pausehint">P = Pausa</div>
 
-        <div id="sub-local" class="subpanel">
-          <div class="modebar">
-            <button class="mb" data-m="normal">Normal</button>
-            <button class="mb" data-m="ctf">Captura la bandera</button>
-            <button class="mb" data-m="koth">Rey de la colina</button>
-            <button class="mb" data-m="inf">Infección</button>
-            <select id="sz"><option value="2">2v2</option><option value="3" selected>3v3</option><option value="4">4v4</option><option value="5">5v5</option></select>
-            <select id="kt"><option>15</option><option>20</option><option>30</option><option>40</option><option>50</option></select>
+      <!-- ===== OVERLAY DE MENÚS ===== -->
+      <div id="ui">
+        <!-- MENÚ PRINCIPAL -->
+        <section class="screen on" id="s-main">
+          <h1 class="title">ARENA <span>SHOOTER</span></h1>
+          <div class="menu">
+            <button data-go="play">Jugar</button>
+            <button data-go="controles">Controles</button>
+            <button data-go="config">Configuración</button>
+            <button data-go="creditos">Créditos</button>
+            <button class="ghost" data-act="quit">Salir</button>
           </div>
-        </div>
+        </section>
 
-        <div id="sub-friends" class="subpanel" style="display:none">
-          <div class="optrow"><span>Tu nombre</span><input id="username" style="max-width:200px;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:14px" /></div>
-          <div id="fr-pre">
-            <div class="optrow">
-              <span>Crear o unirte</span>
-              <span style="display:flex;gap:8px;flex-wrap:wrap">
-                <button id="createroom" class="buy" style="padding:7px 12px">Crear sala</button>
-                <input id="joincode" placeholder="CÓDIGO" maxlength="6" style="width:110px;text-transform:uppercase;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:14px;letter-spacing:2px" />
-                <button id="joinroom" class="keybtn" style="min-width:auto">Unirse</button>
-              </span>
-            </div>
+        <!-- JUGAR -->
+        <section class="screen" id="s-play">
+          <button id="pase-btn" class="pase">PASE DE BATALLA</button>
+          <h2 class="sub">Jugar</h2>
+          <div class="menu">
+            <button data-act="mm">Matchmaking</button>
+            <button data-act="local">Jugar local</button>
+            <button data-go="amigos">Jugar con amigos</button>
+            <button data-go="skins">Skins</button>
+            <button class="ghost" data-act="quit">Salir</button>
           </div>
-          <div id="fr-room" style="display:none">
-            <div class="optrow"><span>Código de sala</span><span><code id="roomcode2" style="font-size:18px;letter-spacing:3px;color:var(--gold)">------</code></span></div>
-            <div class="optrow"><span>Invitar</span><span style="display:flex;gap:8px"><button id="copycode" class="keybtn" style="min-width:auto">📋 Copiar</button><button id="wainvite" class="buy" style="padding:7px 12px">🟢 WhatsApp</button></span></div>
-            <div class="optrow" id="hostcfg"><span>Modo / tamaño</span><span style="display:flex;gap:8px">
+          <button class="back" data-go="main">← Atrás</button>
+        </section>
+
+        <!-- SELECCIÓN DE MODO + JUGADORES (reutilizable) -->
+        <section class="screen" id="s-mode">
+          <h2 class="sub" id="mode-title">Elige partida</h2>
+          <p class="lbl">Tipo de juego</p>
+          <div class="chips" id="mode-chips">
+            <button class="chip on" data-mode="normal">Normal</button>
+            <button class="chip" data-mode="ctf">Captura la bandera</button>
+            <button class="chip" data-mode="koth">Rey de la colina</button>
+            <button class="chip" data-mode="inf">Infección</button>
+          </div>
+          <p class="lbl">Jugadores por equipo</p>
+          <div class="chips" id="size-chips">
+            <button class="chip" data-size="1">1v1</button>
+            <button class="chip" data-size="2">2v2</button>
+            <button class="chip on" data-size="3">3v3</button>
+            <button class="chip" data-size="4">4v4</button>
+            <button class="chip" data-size="5">5v5</button>
+          </div>
+          <div class="row">
+            <button class="primary" id="mode-confirm">Jugar</button>
+          </div>
+          <div id="mode-status" class="muted"></div>
+          <button class="back" id="mode-back">← Atrás</button>
+        </section>
+
+        <!-- JUGAR CON AMIGOS -->
+        <section class="screen" id="s-amigos">
+          <h2 class="sub">Jugar con amigos</h2>
+          <div class="menu">
+            <button data-act="custom">Partida personalizada</button>
+            <button data-act="partymm">Matchmaking</button>
+          </div>
+          <p class="lbl" style="align-self:center">¿Te invitaron? Únete con el código</p>
+          <div class="row">
+            <input id="joincode" placeholder="CÓDIGO" maxlength="6" style="flex:1;text-transform:uppercase;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:11px;font-size:16px;letter-spacing:2px;text-align:center" />
+            <button id="joinroom" class="primary" style="flex:0 0 auto;width:auto;padding:11px 16px">Unirse</button>
+          </div>
+          <button class="back" data-go="play">← Atrás</button>
+        </section>
+
+        <!-- LOBBY -->
+        <section class="screen" id="s-lobby">
+          <h2 class="sub">Lobby</h2>
+          <div class="card-row"><span>Código de sala</span><code id="roomcode2">------</code></div>
+          <div class="row">
+            <button id="copycode">📋 Copiar</button>
+            <button id="wainvite" class="primary">🟢 Invitar por WhatsApp</button>
+          </div>
+          <div class="card-row" id="hostcfg">
+            <span>Modo / tamaño</span>
+            <span style="display:flex;gap:6px">
               <select id="rmode"><option value="normal">Normal</option><option value="ctf">Captura la bandera</option><option value="koth">Rey de la colina</option><option value="inf">Infección</option></select>
               <select id="rsize"><option value="1">1v1</option><option value="2">2v2</option><option value="3" selected>3v3</option><option value="4">4v4</option><option value="5">5v5</option></select>
-            </span></div>
-            <div id="roomplayers" class="grid" style="grid-template-columns:1fr;gap:6px"></div>
-            <div style="display:flex;gap:8px;margin-top:8px">
-              <button id="startroom" class="buy" style="padding:8px 14px">Iniciar partida</button>
-              <button id="findmore" class="keybtn" style="min-width:auto">Buscar más jugadores</button>
-              <button id="leaveroom" class="keybtn" style="min-width:auto">Salir</button>
-            </div>
+            </span>
           </div>
-          <h2 style="margin-top:16px">Amigos</h2>
-          <div class="optrow"><span>Agregar por usuario</span><span style="display:flex;gap:8px"><input id="friendname" placeholder="usuario" style="max-width:160px;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:14px" /><button id="addfriend" class="keybtn" style="min-width:auto">Agregar</button></span></div>
-          <div id="friendlist" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px"></div>
-          <p class="muted" style="font-size:12px;margin-top:10px">⚠️ Online en fase de pruebas: abre el juego en 2 pestañas/equipos, crea sala en una y únete con el código en la otra para probar.</p>
-        </div>
+          <div id="roomplayers" class="list"></div>
+          <div class="row">
+            <button id="startroom" class="primary">Iniciar partida</button>
+            <button id="leaveroom" class="ghost">Salir del lobby</button>
+          </div>
+          <div id="lobby-status" class="muted"></div>
+        </section>
 
-        <div id="sub-match" class="subpanel" style="display:none">
-          <div class="optrow"><span>¿Qué quieres jugar?</span><span style="display:flex;gap:8px">
-            <select id="mmode"><option value="normal">Normal</option><option value="ctf">Captura la bandera</option><option value="koth">Rey de la colina</option><option value="inf">Infección</option></select>
-            <select id="msize"><option value="1">1v1</option><option value="2">2v2</option><option value="3" selected>3v3</option><option value="4">4v4</option><option value="5">5v5</option></select>
-          </span></div>
-          <button id="findmatch" class="buy" style="padding:8px 14px">🔎 Buscar partida</button>
-          <div id="matchstatus" class="muted" style="margin-top:10px"></div>
-        </div>
+        <!-- SKINS -->
+        <section class="screen wide" id="s-skins">
+          <h2 class="sub">Skins desbloqueados</h2>
+          <p class="lbl">Personaje</p>
+          <div id="skingrid" class="grid"></div>
+          <p class="lbl">Animación de muerte</p>
+          <div id="deathgrid" class="grid"></div>
+          <button class="back" data-go="play">← Atrás</button>
+        </section>
 
-        <div id="hud"><span id="hl"></span><span id="hr"></span></div>
-        <canvas id="g" width="660" height="460" tabindex="0"></canvas>
-        <div class="hint">WASD: mover · Mouse: apuntar · Clic: disparar · <b id="hk-sw">Q</b>: cambiar arma · <b id="hk-rl">R</b>: recargar</div>
-      </section>
+        <!-- PASE DE BATALLA -->
+        <section class="screen wide" id="s-pase">
+          <div class="card-row"><h2 class="sub" style="margin:0">Pase de batalla — Temporada 1</h2><button id="buyprem" class="primary">Comprar premium</button></div>
+          <div id="bpbar"></div>
+          <div id="bptrack" class="track"></div>
+          <button class="back" data-go="play">← Atrás</button>
+        </section>
 
-      <section id="view-skins" class="view">
-        <h2>Skin del personaje</h2>
-        <div id="skingrid" class="grid"></div>
-        <h2 style="margin-top:18px">Animación de muerte</h2>
-        <div id="deathgrid" class="grid"></div>
-      </section>
+        <!-- CONTROLES -->
+        <section class="screen" id="s-controles">
+          <h2 class="sub">Controles</h2>
+          <div class="card-row"><span>Mover</span><span class="muted">W A S D / flechas</span></div>
+          <div class="card-row"><span>Apuntar</span><span class="muted">Mouse</span></div>
+          <div class="card-row"><span>Disparar</span><span class="muted">Clic</span></div>
+          <div class="card-row"><span>Cambiar de arma</span><button class="keybtn" id="bind-sw">Q</button></div>
+          <div class="card-row"><span>Recargar</span><button class="keybtn" id="bind-rl">R</button></div>
+          <div class="card-row"><span>Pausa</span><span class="muted">P</span></div>
+          <button class="back" data-go="main">← Atrás</button>
+        </section>
 
-      <section id="view-bp" class="view">
-        <div class="bphead">
-          <h2>Pase de batalla — temporada 1</h2>
-          <button id="buyprem" class="buy">Comprar pase premium</button>
-        </div>
-        <div id="bpbar"></div>
-        <div id="bptrack" class="track"></div>
-      </section>
+        <!-- CONFIGURACIÓN -->
+        <section class="screen" id="s-config">
+          <h2 class="sub">Configuración</h2>
+          <div class="card-row"><span>Nombre de usuario</span><input id="username" /></div>
+          <div class="card-row"><span>Sensibilidad del mouse</span><span><input type="range" id="sens" min="0.15" max="1" step="0.05" /> <b id="sens-val"></b></span></div>
+          <div class="card-row"><span>Color de vida — aliados</span><div class="swatches" id="ally-colors"></div></div>
+          <div class="card-row"><span>Color de vida — enemigos</span><div class="swatches" id="enemy-colors"></div></div>
+          <div class="card-row"><span>Modo prueba</span><button class="keybtn" id="unlockall" style="min-width:auto">🔓 Desbloquear todo</button></div>
+          <button class="back" data-go="main">← Atrás</button>
+        </section>
 
-      <section id="view-opt" class="view">
-        <h2>Opciones</h2>
-        <div class="optrow">
-          <span>Color de vida — aliados</span>
-          <div class="swatches" id="ally-colors"></div>
-        </div>
-        <div class="optrow">
-          <span>Color de vida — enemigos</span>
-          <div class="swatches" id="enemy-colors"></div>
-        </div>
-        <div class="optrow">
-          <span>Tiempo de reaparición</span>
-          <span class="muted">8 segundos</span>
-        </div>
-        <div class="optrow">
-          <span>Modo prueba</span>
-          <button id="unlockall" class="keybtn" style="min-width:auto">🔓 Desbloquear todo (nivel máx)</button>
-        </div>
-      </section>
+        <!-- CRÉDITOS -->
+        <section class="screen" id="s-creditos">
+          <h2 class="sub">Créditos</h2>
+          <p class="muted">Arena Shooter — prototipo.</p>
+          <p class="muted">Diseño y dirección: tú. Programación: Claude.</p>
+          <p class="muted">Arte de personajes: Top-down Shooter de Kenney.nl (CC0).</p>
+          <p class="muted">Hecho con Vite + Canvas. Temporada 1.</p>
+          <button class="back" data-go="main">← Atrás</button>
+        </section>
+      </div>
 
-      <section id="view-ctrl" class="view">
-        <h2>Controles</h2>
-        <div class="optrow"><span>Mover</span><span class="muted">W A S D / flechas</span></div>
-        <div class="optrow"><span>Apuntar</span><span class="muted">Mouse</span></div>
-        <div class="optrow"><span>Disparar</span><span class="muted">Clic</span></div>
-        <div class="optrow"><span>Cambiar de arma</span><button class="keybtn" id="bind-sw">Q</button></div>
-        <div class="optrow"><span>Recargar</span><button class="keybtn" id="bind-rl">R</button></div>
-        <p class="muted" style="font-size:13px;margin-top:14px">Cada jugador tiene munición limitada: balas por cargador + reserva, y granadas. Se muestran abajo a la izquierda en la partida. Recarga cuando se acaba el cargador.</p>
-      </section>
-
-      <section id="view-cred" class="view">
-        <h2>Créditos</h2>
-        <p class="muted">Arena Shooter — prototipo.</p>
-        <p class="muted">Diseño y dirección: tú. Programación: Claude.</p>
-        <p class="muted">Hecho con Vite + Canvas. Temporada 1.</p>
-        <p class="muted">Arte de personajes: Top-down Shooter de Kenney.nl (CC0).</p>
-      </section>
+      <!-- ===== PAUSA ===== -->
+      <div id="pause">
+        <div class="panel">
+          <h2 class="sub">Pausa</h2>
+          <button class="primary" id="resume">Reanudar</button>
+          <div class="card-row"><span>Cambiar arma</span><button class="keybtn" id="bind-sw2">Q</button></div>
+          <div class="card-row"><span>Recargar</span><button class="keybtn" id="bind-rl2">R</button></div>
+          <div class="card-row"><span>Sensibilidad</span><span><input type="range" id="sens2" min="0.15" max="1" step="0.05" /> <b id="sens-val2"></b></span></div>
+          <div class="card-row"><span>Vida aliados</span><div class="swatches" id="ally-colors2"></div></div>
+          <div class="card-row"><span>Vida enemigos</span><div class="swatches" id="enemy-colors2"></div></div>
+          <button class="ghost" id="exitgame">Salir</button>
+          <div id="exit-opts" style="display:none">
+            <p class="muted">Estás en una party:</p>
+            <div class="row"><button id="exit-party">Salir con party</button><button id="exit-solo" class="ghost">Salir solo</button></div>
+          </div>
+        </div>
+      </div>
 
       <div id="toast" class="toast"></div>
     </div>

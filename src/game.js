@@ -6,6 +6,12 @@ let cv, ctx, W, H, VW, VH, cb = {};
 const cam = { x: 0, y: 0 };
 let floorType = "concrete", stairs = [];
 let netMode = false, netSend = null, myNetId = null, netClock = 0;
+let paused = false;
+function alerp(a, b, t) { let d = ((b - a + Math.PI) % (2 * Math.PI)) - Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return a + d * t; }
+export function setPaused(p) { paused = p; }
+export function isPlaying() { return state === "play"; }
+export function partySize() { return ents.filter((e) => e.net).length; }
+export function exitGame() { paused = false; over = null; if (netMode && netSend) netSend({ t: "leave" }); netMode = false; state = "menu"; }
 let mode = "normal", state = "menu";
 let ents = [], bullets = [], nades = [], pups = [], parts = [], rings = [], floats = [], feed = [];
 let scoreA = 0, scoreB = 0, cfgKill = 15, timer = 0, hill = null, flag = null, ctfTurns = [], ctfIdx = 0, pupT = 0, hillMove = 0, over = null;
@@ -76,6 +82,7 @@ export function init(canvas, callbacks) {
       if (k === P.getSetting("keySwitch")) me.wp = me.wp === "gun" && me.gr > 0 ? "nade" : "gun";
       if (k === P.getSetting("keyReload")) reload(me);
     }
+    if (k === "p" && state === "play") { paused = !paused; if (cb.pause) cb.pause(paused); }
     if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) e.preventDefault();
   });
   window.addEventListener("keyup", (e) => { keys[e.key.toLowerCase()] = false; });
@@ -92,7 +99,7 @@ export function init(canvas, callbacks) {
 export function start(m, cfg) {
   mode = m; bullets = []; nades = []; pups = []; parts = []; rings = []; floats = []; feed = [];
   over = null; scoreA = 0; scoreB = 0; timer = 0; flag = null; hill = null; pupT = 2; hillMove = 0;
-  netMode = false; netSend = null;
+  netMode = false; netSend = null; paused = false;
   cfgKill = (cfg && cfg.kill) || 15;
   const size = (cfg && cfg.size) || 3;
   pickMap(m === "koth" || m === "inf" ? 5 : m === "ctf" ? 3 : size);
@@ -214,6 +221,7 @@ function ctfBot(e, dt) {
 }
 
 function update(dt) {
+  if (paused) return;
   const meCam = playerEnt();
   if (meCam) { cam.x = clamp(meCam.x - VW / 2, 0, W - VW); cam.y = clamp(meCam.y - VH / 2, 0, H - VH); }
   for (const f of parts) { f.x += f.vx * dt; f.y += f.vy * dt; f.life -= dt; f.vx *= 0.96; f.vy *= 0.96; }
@@ -243,7 +251,9 @@ function update(dt) {
       let dx = 0, dy = 0;
       if (keys.w || keys.arrowup) dy--; if (keys.s || keys.arrowdown) dy++; if (keys.a || keys.arrowleft) dx--; if (keys.d || keys.arrowright) dx++;
       const m = Math.hypot(dx, dy) || 1; moveC(e, (dx / m) * sp * dt, (dy / m) * sp * dt);
-      e.aim = Math.atan2(mouse.y + cam.y - e.y, mouse.x + cam.x - e.x); e.cd -= dt;
+      const _tgt = Math.atan2(mouse.y + cam.y - e.y, mouse.x + cam.x - e.x);
+      const _s = P.getSetting("sensitivity") || 1;
+      e.aim = _s >= 1 ? _tgt : alerp(e.aim, _tgt, _s); e.cd -= dt;
       if (mouse.down && e.cd <= 0 && e.wp !== "none") {
         if (e.wp === "nade") { throwNade(e); e.cd = 0.5; if (e.gr === 0) e.wp = "gun"; }
         else if (e.reloading <= 0) { if (e.mag > 0) { shoot(e, e.aim); e.mag--; e.cd = fcd(e); if (e.mag === 0) reload(e); } else reload(e); }

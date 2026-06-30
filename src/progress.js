@@ -19,6 +19,7 @@ let state = load() || {
 if (!state.settings) state.settings = { ally: "azul", enemy: "rojo", keySwitch: "q", keyReload: "r" };
 if (!state.unlockedDeaths) state.unlockedDeaths = DEFAULT_DEATHS.slice();
 if (!state.settings.username) state.settings.username = "Jugador" + Math.floor(1000 + Math.random() * 9000);
+if (state.settings.sensitivity == null) state.settings.sensitivity = 1;
 
 function save() { localStorage.setItem(KEY, JSON.stringify(state)); }
 

@@ -6,199 +6,205 @@ import { getSkin, getDeath, SKINS, DEATH_ANIMS } from "./skins.js";
 import * as net from "./net.js";
 
 const $ = (id) => document.getElementById(id);
-const toastEl = $("toast");
 const ALLY = { azul: "#378ADD", verde: "#5DCAA5" };
 const ENEMY = { rojo: "#E24B4A", negro: "#0e131c" };
 
-function refreshUI() {
-  $("lvl").textContent = P.getState().level;
-  bp.renderSkins($("skingrid"), $("deathgrid"), refreshUI);
-  bp.renderBP($("bpbar"), $("bptrack"));
-  renderOptions();
-  renderControls();
-  renderFriends();
-  if ($("username")) $("username").value = P.getSetting("username");
-}
-
-function renderOptions() {
-  buildSwatches($("ally-colors"), ALLY, "ally");
-  buildSwatches($("enemy-colors"), ENEMY, "enemy");
-}
-function buildSwatches(box, map, key) {
-  box.innerHTML = "";
-  Object.keys(map).forEach((name) => {
-    const sw = document.createElement("div");
-    sw.className = "swatch" + (P.getSetting(key) === name ? " sel" : "");
-    sw.style.background = map[name];
-    sw.title = name;
-    sw.onclick = () => { P.setSetting(key, name); renderOptions(); };
-    box.appendChild(sw);
-  });
-}
-
-function renderControls() {
-  $("bind-sw").textContent = P.getSetting("keySwitch").toUpperCase();
-  $("bind-rl").textContent = P.getSetting("keyReload").toUpperCase();
-  $("hk-sw").textContent = P.getSetting("keySwitch").toUpperCase();
-  $("hk-rl").textContent = P.getSetting("keyReload").toUpperCase();
-}
-function bindKey(btn, settingKey) {
-  btn.onclick = () => {
-    btn.classList.add("listening"); btn.textContent = "…";
-    const onKey = (e) => {
-      e.preventDefault();
-      P.setSetting(settingKey, e.key.toLowerCase());
-      btn.classList.remove("listening");
-      window.removeEventListener("keydown", onKey, true);
-      renderControls();
-    };
-    window.addEventListener("keydown", onKey, true);
-  };
-}
-
 let toastT;
-function toast(msg) { toastEl.textContent = msg; toastEl.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => toastEl.classList.remove("show"), 2600); }
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2600); }
 
-function gainXP(amt) {
-  const res = P.addXP(amt);
-  if (res.unlocks.length) {
-    const names = res.unlocks.map((id) => (getSkin(id).id === id ? getSkin(id).name : getDeath(id).name));
-    toast("¡Desbloqueaste: " + names.join(", ") + "!");
-  } else if (res.leveledTo) toast("¡Subiste a nivel " + res.leveledTo + "!");
-  refreshUI();
+/* ---------- Router de pantallas ---------- */
+function show(id) {
+  document.body.classList.remove("playing");
+  $("pause").classList.remove("on");
+  document.querySelectorAll(".screen").forEach((s) => s.classList.remove("on"));
+  $("s-" + id).classList.add("on");
+  if (id === "skins") renderSkins();
+  if (id === "pase") bp.renderBP($("bpbar"), $("bptrack"));
+  if (id === "config") renderConfig();
+  if (id === "controles") refreshBinds();
+  if (id === "lobby" && lastRoom) showRoom(lastRoom);
+}
+function startPlaying() { document.body.classList.add("playing"); $("pause").classList.remove("on"); }
+
+/* ---------- Navegación por data-go / data-act ---------- */
+document.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => show(b.dataset.go)));
+$("pase-btn").addEventListener("click", () => show("pase"));
+
+document.querySelectorAll("[data-act]").forEach((b) => b.addEventListener("click", () => act(b.dataset.act)));
+let modeCtx = "local", flowCtx = "mm";
+function act(a) {
+  if (a === "quit") quit();
+  else if (a === "local") { modeCtx = "local"; $("mode-title").textContent = "Jugar local"; $("mode-status").textContent = ""; show("mode"); }
+  else if (a === "mm") { modeCtx = "mm"; flowCtx = "mm"; $("mode-title").textContent = "Matchmaking"; $("mode-status").textContent = ""; show("mode"); }
+  else if (a === "custom") friendsRoom("custom");
+  else if (a === "partymm") friendsRoom("partymm");
+}
+function quit() {
+  try { window.close(); } catch {}
+  toast("Para salir, cierra la pestaña o la app.");
 }
 
-game.init($("g"), { kill: () => gainXP(50), win: () => gainXP(200), match: () => gainXP(60) });
-
-document.querySelectorAll(".tab").forEach((tab) => {
-  tab.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
-    document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
-    tab.classList.add("active");
-    $("view-" + tab.dataset.view).classList.add("active");
-    if (tab.dataset.view !== "play") refreshUI();
-  });
+/* ---------- Selección de modo + jugadores ---------- */
+let selMode = "normal", selSize = 3;
+$("mode-chips").querySelectorAll(".chip").forEach((c) => c.addEventListener("click", () => {
+  $("mode-chips").querySelectorAll(".chip").forEach((x) => x.classList.remove("on")); c.classList.add("on"); selMode = c.dataset.mode;
+}));
+$("size-chips").querySelectorAll(".chip").forEach((c) => c.addEventListener("click", () => {
+  $("size-chips").querySelectorAll(".chip").forEach((x) => x.classList.remove("on")); c.classList.add("on"); selSize = parseInt(c.dataset.size);
+}));
+$("mode-back").addEventListener("click", () => show("play"));
+$("mode-confirm").addEventListener("click", async () => {
+  if (modeCtx === "local") { game.start(selMode, { size: selSize, kill: 20 }); startPlaying(); }
+  else if (modeCtx === "mm") {
+    if (!(await ensureConnected())) return;
+    $("mode-status").textContent = "Buscando jugadores…";
+    net.send({ t: "match", name: P.getSetting("username"), mode: selMode, size: selSize });
+  }
 });
 
-document.querySelectorAll(".mb").forEach((b) => {
-  b.addEventListener("click", () => game.start(b.dataset.m, { size: parseInt($("sz").value) || 3, kill: parseInt($("kt").value) || 15 }));
-});
-
-$("buyprem").addEventListener("click", () => {
-  if (P.isPremium()) { toast("Ya tienes el pase premium"); return; }
-  const unlocks = P.buyPremium();
-  toast(unlocks.length ? "¡Pase premium! Skins nuevas: " + unlocks.length : "¡Pase premium activado!");
-  refreshUI();
-});
-
-bindKey($("bind-sw"), "keySwitch");
-bindKey($("bind-rl"), "keyReload");
-
-// ---- Hub (Local / Amigos / Matchmaking) ----
-document.querySelectorAll(".hubb").forEach((b) => {
-  b.addEventListener("click", () => {
-    document.querySelectorAll(".hubb").forEach((x) => x.classList.remove("active"));
-    b.classList.add("active");
-    ["local", "friends", "match"].forEach((s) => { $("sub-" + s).style.display = b.dataset.sub === s ? "block" : "none"; });
-    if (b.dataset.sub !== "local") ensureConnected();
-  });
-});
-
-$("username").addEventListener("input", (e) => { P.setSetting("username", e.target.value || "Jugador"); });
-$("addfriend").addEventListener("click", () => {
-  const n = $("friendname").value.trim();
-  if (P.addFriend(n)) { $("friendname").value = ""; renderFriends(); toast("Amigo agregado: " + n); }
-  else toast("Escribe un usuario válido (o ya está en tu lista)");
-});
-function renderFriends() {
-  const fl = $("friendlist"); if (!fl) return; fl.innerHTML = "";
-  const friends = P.getFriends();
-  if (!friends.length) { const e = document.createElement("div"); e.className = "card"; e.innerHTML = '<span class="muted">Sin amigos aún</span>'; fl.appendChild(e); }
-  friends.forEach((n) => {
-    const c = document.createElement("div"); c.className = "card"; c.style.textAlign = "left"; c.innerHTML = '<b>' + n + '</b>';
-    const b = document.createElement("button"); b.className = "btn-locked"; b.textContent = "Quitar"; b.style.marginTop = "6px";
-    b.onclick = () => { P.removeFriend(n); renderFriends(); };
-    c.appendChild(b); fl.appendChild(c);
-  });
-}
-
-// ---- Online: conexión + sala ----
-let netReady = false, room = null;
-async function ensureConnected() {
-  if (netReady) return true;
-  try { await net.connect(); netReady = true; setupNetHandlers(); return true; }
-  catch { toast("No hay servidor online. Corre: npm run server"); return false; }
-}
-function setupNetHandlers() {
-  net.on("room", (m) => { room = m; showRoom(m); });
-  net.on("error", (m) => toast(m.msg));
-  net.on("left", (m) => game.netLeft && game.netLeft(m.id));
-  net.on("state", (m) => game.netState(m.id, m.s));
-  net.on("shot", (m) => game.netShot(m.id, m.x, m.y, m.ang));
-  net.on("nade", (m) => game.netNade(m.id, m.tx, m.ty));
-  net.on("start", (m) => {
-    const myTeam = m.teams[net.myId()] || "A";
-    game.startOnline({ mode: m.mode, size: m.size, myId: net.myId(), team: myTeam, name: P.getSetting("username"), send: (o) => net.send(o) });
-    toast("¡Partida iniciada!");
-  });
-  net.on("close", () => { netReady = false; toast("Conexión cerrada"); });
-}
-function showRoom(m) {
-  $("fr-pre").style.display = "none";
-  $("fr-room").style.display = "block";
-  $("roomcode2").textContent = net.roomCodeNow() || m.code || "------";
-  $("hostcfg").style.display = net.amHost() ? "flex" : "none";
-  $("startroom").style.display = net.amHost() ? "inline-block" : "none";
-  const pl = $("roomplayers"); pl.innerHTML = "";
-  m.players.forEach((p) => {
-    const c = document.createElement("div"); c.className = "card"; c.style.textAlign = "left";
-    const host = p.id === m.hostId ? ' <span class="rar" style="color:#5DCAA5">anfitrión</span>' : "";
-    const mine = p.id === net.myId() ? " (tú)" : "";
-    c.innerHTML = "<b>" + p.name + mine + "</b>" + host + ' <span class="muted">· equipo ' + (p.team || "?") + "</span>";
-    pl.appendChild(c);
-  });
-}
-$("createroom").addEventListener("click", async () => {
+/* ---------- Jugar con amigos ---------- */
+async function friendsRoom(kind) {
   if (!(await ensureConnected())) return;
-  net.send({ t: "create", name: P.getSetting("username"), mode: $("rmode").value, size: parseInt($("rsize").value) });
-});
+  flowCtx = "amigos";
+  net.send({ t: "create", name: P.getSetting("username"), mode: "normal", size: 3 });
+  // la pantalla lobby se mostrará al recibir 'joined'
+  if (kind === "partymm") toast("Invita a tus amigos y luego inicien la partida");
+}
+
 $("joinroom").addEventListener("click", async () => {
   const code = $("joincode").value.trim().toUpperCase();
   if (code.length !== 6) return toast("Escribe un código de 6 caracteres");
   if (!(await ensureConnected())) return;
+  flowCtx = "amigos";
   net.send({ t: "join", code, name: P.getSetting("username") });
 });
-$("rmode").addEventListener("change", () => net.amHost() && net.send({ t: "config", mode: $("rmode").value, size: parseInt($("rsize").value) }));
-$("rsize").addEventListener("change", () => net.amHost() && net.send({ t: "config", mode: $("rmode").value, size: parseInt($("rsize").value) }));
-$("startroom").addEventListener("click", () => net.send({ t: "start" }));
-$("findmore").addEventListener("click", () => toast("Comparte el código para que entren más"));
-$("leaveroom").addEventListener("click", () => { net.send({ t: "leave" }); room = null; $("fr-room").style.display = "none"; $("fr-pre").style.display = "block"; });
+
+/* ---------- Lobby ---------- */
+let lastRoom = null;
+function showRoom(m) {
+  lastRoom = m;
+  $("roomcode2").textContent = net.roomCodeNow() || "------";
+  const host = net.amHost();
+  $("hostcfg").style.display = host ? "flex" : "none";
+  $("startroom").style.display = host ? "block" : "none";
+  const pl = $("roomplayers"); pl.innerHTML = "";
+  m.players.forEach((p) => {
+    const it = document.createElement("div"); it.className = "it";
+    const tag = p.id === m.hostId ? " · anfitrión" : ""; const mine = p.id === net.myId() ? " (tú)" : "";
+    it.innerHTML = "<b>" + p.name + mine + "</b><span class='muted'>" + tag + " · equipo " + (p.team || "?") + "</span>";
+    pl.appendChild(it);
+  });
+}
 $("copycode").addEventListener("click", () => { const c = net.roomCodeNow(); if (c) { navigator.clipboard?.writeText(c); toast("Código copiado: " + c); } });
 $("wainvite").addEventListener("click", () => {
   const c = net.roomCodeNow(); if (!c) return;
   const txt = "¡Únete a mi partida en Arena Shooter! 🎮 Código: " + c + "  " + location.origin + "/?room=" + c;
   window.open("https://wa.me/?text=" + encodeURIComponent(txt), "_blank");
 });
-$("findmatch").addEventListener("click", async () => {
-  if (!(await ensureConnected())) return;
-  $("matchstatus").textContent = "Buscando partida…";
-  net.send({ t: "match", name: P.getSetting("username"), mode: $("mmode").value, size: parseInt($("msize").value) });
-});
+$("rmode").addEventListener("change", () => net.amHost() && net.send({ t: "config", mode: $("rmode").value, size: parseInt($("rsize").value) }));
+$("rsize").addEventListener("change", () => net.amHost() && net.send({ t: "config", mode: $("rmode").value, size: parseInt($("rsize").value) }));
+$("startroom").addEventListener("click", () => net.send({ t: "start" }));
+$("leaveroom").addEventListener("click", () => { net.send({ t: "leave" }); lastRoom = null; show("amigos"); });
 
-// Auto-unirse si llega por link ?room=CODE
-const urlRoom = new URLSearchParams(location.search).get("room");
-if (urlRoom) {
-  document.querySelector('.hubb[data-sub="friends"]').click();
-  ensureConnected().then((ok) => { if (ok) net.send({ t: "join", code: urlRoom.toUpperCase(), name: P.getSetting("username") }); });
+/* ---------- Red ---------- */
+let netReady = false;
+async function ensureConnected() {
+  if (netReady) return true;
+  try { await net.connect(); netReady = true; setupNet(); return true; }
+  catch { toast("No hay servidor online disponible."); return false; }
+}
+function setupNet() {
+  net.on("joined", () => { if (flowCtx === "amigos") show("lobby"); });
+  net.on("room", (m) => { showRoom(m); });
+  net.on("error", (m) => toast(m.msg));
+  net.on("left", (m) => game.netLeft(m.id));
+  net.on("state", (m) => game.netState(m.id, m.s));
+  net.on("shot", (m) => game.netShot(m.id, m.x, m.y, m.ang));
+  net.on("nade", (m) => game.netNade(m.id, m.tx, m.ty));
+  net.on("start", (m) => {
+    const myTeam = m.teams[net.myId()] || "A";
+    game.startOnline({ mode: m.mode, size: m.size, myId: net.myId(), team: myTeam, name: P.getSetting("username"), send: (o) => net.send(o) });
+    startPlaying();
+    toast("¡Partida iniciada!");
+  });
+  net.on("close", () => { netReady = false; toast("Conexión cerrada"); });
 }
 
-$("unlockall").addEventListener("click", () => {
-  P.unlockAll(SKINS.map((s) => s.id), DEATH_ANIMS.map((d) => d.id));
-  toast("¡Todo desbloqueado! Nivel máximo. Equipa Chroma en Skins.");
-  refreshUI();
+/* ---------- Skins ---------- */
+function renderSkins() { bp.renderSkins($("skingrid"), $("deathgrid"), renderSkins); }
+$("buyprem").addEventListener("click", () => {
+  if (P.isPremium()) return toast("Ya tienes el pase premium");
+  const u = P.buyPremium(); toast(u.length ? "¡Premium! Skins nuevas: " + u.length : "¡Premium activado!");
+  bp.renderBP($("bpbar"), $("bptrack"));
 });
 
-refreshUI();
+/* ---------- Configuración / swatches / binds / sensibilidad ---------- */
+function buildSwatches(box, key) {
+  box.innerHTML = "";
+  const map = key === "ally" ? ALLY : ENEMY;
+  Object.keys(map).forEach((name) => {
+    const sw = document.createElement("div"); sw.className = "swatch" + (P.getSetting(key) === name ? " sel" : "");
+    sw.style.background = map[name]; sw.title = name;
+    sw.onclick = () => { P.setSetting(key, name); buildSwatches($("ally-colors"), "ally"); buildSwatches($("enemy-colors"), "enemy"); buildSwatches($("ally-colors2"), "ally"); buildSwatches($("enemy-colors2"), "enemy"); };
+    box.appendChild(sw);
+  });
+}
+function refreshBinds() {
+  ["bind-sw", "bind-sw2"].forEach((i) => { if ($(i)) $(i).textContent = P.getSetting("keySwitch").toUpperCase(); });
+  ["bind-rl", "bind-rl2"].forEach((i) => { if ($(i)) $(i).textContent = P.getSetting("keyReload").toUpperCase(); });
+}
+function bindKey(btn, settingKey) {
+  if (!btn) return;
+  btn.onclick = () => {
+    btn.classList.add("listening"); btn.textContent = "…";
+    const onKey = (e) => { e.preventDefault(); P.setSetting(settingKey, e.key.toLowerCase()); btn.classList.remove("listening"); window.removeEventListener("keydown", onKey, true); refreshBinds(); };
+    window.addEventListener("keydown", onKey, true);
+  };
+}
+function setSens(v) { P.setSetting("sensitivity", v); $("sens").value = v; $("sens2").value = v; $("sens-val").textContent = Math.round(v * 100) + "%"; $("sens-val2").textContent = Math.round(v * 100) + "%"; }
+function renderConfig() {
+  $("username").value = P.getSetting("username");
+  setSens(P.getSetting("sensitivity"));
+  buildSwatches($("ally-colors"), "ally"); buildSwatches($("enemy-colors"), "enemy");
+  refreshBinds();
+}
+$("username").addEventListener("input", (e) => P.setSetting("username", e.target.value || "Jugador"));
+$("sens").addEventListener("input", (e) => setSens(parseFloat(e.target.value)));
+$("sens2").addEventListener("input", (e) => setSens(parseFloat(e.target.value)));
+$("unlockall").addEventListener("click", () => { P.unlockAll(SKINS.map((s) => s.id), DEATH_ANIMS.map((d) => d.id)); toast("¡Todo desbloqueado! Equipa Chroma en Skins."); });
+[["bind-sw", "keySwitch"], ["bind-rl", "keyReload"], ["bind-sw2", "keySwitch"], ["bind-rl2", "keyReload"]].forEach(([id, k]) => bindKey($(id), k));
+
+/* ---------- Pausa ---------- */
+function openPause() {
+  $("pause").classList.add("on");
+  setSens(P.getSetting("sensitivity"));
+  buildSwatches($("ally-colors2"), "ally"); buildSwatches($("enemy-colors2"), "enemy");
+  refreshBinds();
+  $("exit-opts").style.display = "none";
+}
+function closePause() { $("pause").classList.remove("on"); }
+$("resume").addEventListener("click", () => { game.setPaused(false); closePause(); });
+$("exitgame").addEventListener("click", () => {
+  if (game.partySize() > 0) { $("exit-opts").style.display = "block"; }
+  else doExit();
+});
+$("exit-party").addEventListener("click", () => doExit());
+$("exit-solo").addEventListener("click", () => doExit());
+function doExit() { game.exitGame(); closePause(); document.body.classList.remove("playing"); show(net.connected() && lastRoom ? "lobby" : "play"); }
+
+/* ---------- Init ---------- */
+game.init($("g"), {
+  kill: () => P.addXP(50),
+  win: () => P.addXP(200),
+  match: () => P.addXP(60),
+  pause: (p) => (p ? openPause() : closePause()),
+});
+
+// Auto-unirse por link ?room=CODE
+const urlRoom = new URLSearchParams(location.search).get("room");
+if (urlRoom) { flowCtx = "amigos"; ensureConnected().then((ok) => { if (ok) net.send({ t: "join", code: urlRoom.toUpperCase(), name: P.getSetting("username") }); }); }
+
+show("main");
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
