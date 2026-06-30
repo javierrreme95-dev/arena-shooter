@@ -7,7 +7,10 @@ let selfId = null, roomCode = null, isHost = false;
 export function connect() {
   return new Promise((res, rej) => {
     if (ws && ws.readyState === 1) return res();
-    const url = "ws://" + (location.hostname || "localhost") + ":8787";
+    const local = ["localhost", "127.0.0.1"].includes(location.hostname);
+    const url = local
+      ? "ws://localhost:8787"
+      : (location.protocol === "https:" ? "wss://" : "ws://") + location.host;
     ws = new WebSocket(url);
     ws.onopen = () => res();
     ws.onerror = (e) => rej(e);

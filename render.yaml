@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: arena-shooter
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: node server/index.js
+    autoDeploy: true
