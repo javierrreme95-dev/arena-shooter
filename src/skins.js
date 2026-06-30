@@ -44,17 +44,22 @@ function tintImg(img, tint) {
   return _off;
 }
 
-function drawImgRot(ctx, img, x, y, r, aim, tint) {
+// Calibración: dirección en la que apunta el arma/frente DENTRO del sprite (radianes).
+// Medido en los PNG de Kenney: el cañón del soldado apunta a ~17.5°; el zombie reach ~28°.
+export const GUN_DIR = 0.305;
+export const ZOMBIE_DIR = 0.5;
+
+function drawImgRot(ctx, img, x, y, r, rot, tint) {
   const src = tint ? tintImg(img, tint) : img;
   const s = r * 3, iw = img.naturalWidth, ih = img.naturalHeight, sc = s / Math.max(iw, ih);
   const w = iw * sc, h = ih * sc;
-  ctx.save(); ctx.translate(x, y); ctx.rotate(aim + Math.PI / 2);
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
   ctx.drawImage(src, -w / 2, -h / 2, w, h); ctx.restore();
 }
 
 export function drawSoldier(ctx, x, y, r, skin, aim, t) {
   const img = getSprite("/sprites/soldado_" + skin.id + ".png");
-  if (img) { drawImgRot(ctx, img, x, y, r, aim, skin.chroma ? "hsla(" + Math.floor((t * 120) % 360) + ",90%,55%,0.55)" : null); return; }
+  if (img) { drawImgRot(ctx, img, x, y, r, aim - GUN_DIR, skin.chroma ? "hsla(" + Math.floor((t * 120) % 360) + ",90%,55%,0.55)" : null); return; }
   const body = skin.chroma ? chromaCol(0, t) : skin.body;
   const acc = skin.chroma ? chromaCol(60, t) : skin.accent;
   ctx.save();
@@ -79,7 +84,7 @@ export function drawSoldier(ctx, x, y, r, skin, aim, t) {
 export function drawSoldierPreview(canvas, skinId) {
   const c = canvas.getContext("2d"), s = canvas.width;
   c.clearRect(0, 0, s, s);
-  drawSoldier(c, s / 2, s / 2, s / 2 - 8, getSkin(skinId), -Math.PI / 2, performance.now() / 1000);
+  drawSoldier(c, s / 2, s / 2, s / 2 - 8, getSkin(skinId), GUN_DIR, performance.now() / 1000);
 }
 
 export function drawDeathPreview(canvas, deathId) {
@@ -105,7 +110,7 @@ export function randomZombie() { return ZOMBIE_SKINS[Math.floor(Math.random() * 
 
 export function drawZombie(ctx, x, y, r, z, aim, t) {
   const img = getSprite("/sprites/zombie_" + z.id + ".png");
-  if (img) { drawImgRot(ctx, img, x, y, r, aim); return; }
+  if (img) { drawImgRot(ctx, img, x, y, r, aim - ZOMBIE_DIR); return; }
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(aim);
@@ -133,5 +138,5 @@ export function drawZombie(ctx, x, y, r, z, aim, t) {
 export function drawZombiePreview(canvas, id) {
   const c = canvas.getContext("2d"), s = canvas.width;
   c.clearRect(0, 0, s, s);
-  drawZombie(c, s / 2, s / 2, s / 2 - 8, getZombie(id), -Math.PI / 2, performance.now() / 1000);
+  drawZombie(c, s / 2, s / 2, s / 2 - 8, getZombie(id), ZOMBIE_DIR, performance.now() / 1000);
 }
