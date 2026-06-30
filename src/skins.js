@@ -64,3 +64,46 @@ export function drawDeathPreview(canvas, deathId) {
   else if (deathId === "humo") { c.globalAlpha = 0.6; for (let i = 0; i < 4; i++) { c.beginPath(); c.arc(s / 2 + (i - 1.5) * 8, s / 2, 9, 0, 6.283); c.fill(); } c.globalAlpha = 1; }
   else { for (let i = 0; i < 8; i++) { const a = (i / 8) * 6.283; c.beginPath(); c.arc(s / 2 + Math.cos(a) * 16, s / 2 + Math.sin(a) * 16, 4, 0, 6.283); c.fill(); } }
 }
+
+export const ZOMBIE_SKINS = [
+  { id: "clasico", name: "Clásico", shirt: "#8a8f87", flesh: "#7d9b5e", hair: "#262420" },
+  { id: "putrefaccion", name: "Putrefacción", shirt: "#9a9b7a", flesh: "#9aa86a", hair: "#33301f", blood: true },
+  { id: "sangriento", name: "Sangriento", shirt: "#8a8f87", flesh: "#7d9b5e", hair: "#262420", blood: true, gore: true },
+  { id: "huesudo", name: "Huesudo", shirt: "#7d8278", flesh: "#cfc9ad", bone: true },
+  { id: "rapido", name: "Rápido", shirt: "#6f7a66", flesh: "#5f7d4a", hair: "#161616" },
+];
+const zById = {};
+ZOMBIE_SKINS.forEach((z) => (zById[z.id] = z));
+export function getZombie(id) { return zById[id] || ZOMBIE_SKINS[0]; }
+export function randomZombie() { return ZOMBIE_SKINS[Math.floor(Math.random() * ZOMBIE_SKINS.length)].id; }
+
+export function drawZombie(ctx, x, y, r, z, aim, t) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(aim);
+  ctx.strokeStyle = z.flesh;
+  ctx.lineWidth = r * 0.34;
+  ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(0, -r * 0.35); ctx.lineTo(r * 1.05, -r * 0.55); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, r * 0.35); ctx.lineTo(r * 1.05, r * 0.55); ctx.stroke();
+  ctx.fillStyle = z.flesh;
+  ctx.beginPath(); ctx.arc(r * 1.05, -r * 0.55, r * 0.18, 0, 6.283); ctx.fill();
+  ctx.beginPath(); ctx.arc(r * 1.05, r * 0.55, r * 0.18, 0, 6.283); ctx.fill();
+  ctx.fillStyle = z.shirt;
+  ctx.beginPath(); ctx.ellipse(-r * 0.1, 0, r * 0.72, r * 0.72, 0, 0, 6.283); ctx.fill();
+  if (z.blood) { ctx.fillStyle = z.gore ? "#a01818" : "#7a2a1a"; for (let i = 0; i < 4; i++) { const a = i * 1.7; ctx.beginPath(); ctx.arc(Math.cos(a) * r * 0.4 - r * 0.1, Math.sin(a) * r * 0.4, r * 0.12, 0, 6.283); ctx.fill(); } }
+  if (z.bone) {
+    ctx.fillStyle = z.flesh; ctx.beginPath(); ctx.arc(-r * 0.05, 0, r * 0.55, 0, 6.283); ctx.fill();
+    ctx.fillStyle = "#2a261f"; ctx.beginPath(); ctx.arc(r * 0.15, -r * 0.2, r * 0.12, 0, 6.283); ctx.fill(); ctx.beginPath(); ctx.arc(r * 0.15, r * 0.2, r * 0.12, 0, 6.283); ctx.fill();
+  } else {
+    ctx.fillStyle = z.flesh; ctx.beginPath(); ctx.arc(-r * 0.05, 0, r * 0.55, 0, 6.283); ctx.fill();
+    ctx.fillStyle = z.hair; ctx.beginPath(); ctx.arc(-r * 0.18, 0, r * 0.42, -1.4, 1.4); ctx.fill();
+  }
+  ctx.restore();
+}
+
+export function drawZombiePreview(canvas, id) {
+  const c = canvas.getContext("2d"), s = canvas.width;
+  c.clearRect(0, 0, s, s);
+  drawZombie(c, s / 2, s / 2, s / 2 - 8, getZombie(id), -Math.PI / 2, performance.now() / 1000);
+}

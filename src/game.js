@@ -1,4 +1,4 @@
-import { getSkin, drawSoldier, randomBotSkin, getDeath } from "./skins.js";
+import { getSkin, drawSoldier, randomBotSkin, getDeath, getZombie, randomZombie, drawZombie } from "./skins.js";
 import * as P from "./progress.js";
 
 let cv, ctx, W, H, cb = {};
@@ -27,7 +27,7 @@ function spawn(team) {
 }
 function mkE(team, isP, smul, name) {
   const p = spawn(team);
-  return { x: p.x, y: p.y, r: 13, team, isP, name, hp: 100, aim: 0, cd: 0, alive: true, resp: 0, dx: p.x, dy: p.y, kills: 0, points: 0, smul: smul || 1, bf: { fire: 0, sh: 0, bl: 0 }, shp: 0, wp: "gun", gr: 0, carry: false, skin: isP ? P.getEquipped() : randomBotSkin(), mag: 24, reserve: 120, reloading: 0 };
+  return { x: p.x, y: p.y, r: 13, team, isP, name, hp: 100, aim: 0, cd: 0, alive: true, resp: 0, dx: p.x, dy: p.y, kills: 0, points: 0, smul: smul || 1, bf: { fire: 0, sh: 0, bl: 0 }, shp: 0, wp: "gun", gr: 0, carry: false, skin: isP ? P.getEquipped() : randomBotSkin(), zskin: "clasico", mag: 24, reserve: 120, reloading: 0 };
 }
 function isEnemy(a, b) { if (mode === "koth") return a !== b; return a.team !== b.team; }
 function nEnemy(e) { let best = null, bd = 1e9; for (const o of ents) if (o.alive && isEnemy(e, o)) { const d = dist(e, o); if (d < bd) { bd = d; best = o; } } return best; }
@@ -76,7 +76,7 @@ export function start(m, cfg) {
     for (let i = 0; i < 5; i++) ents.push(mkE("FFA" + i, false, 1, "Bot " + (i + 1)));
     hill = { x: W / 2, y: H / 2, r: 55 }; hillMove = 18;
   } else if (m === "inf") {
-    ents = [mkE("Z", false, 1.5, "Infectado")]; ents[0].wp = "none";
+    ents = [mkE("Z", false, 1.5, "Infectado")]; ents[0].wp = "none"; ents[0].zskin = "rapido";
     ents.push(mkE("S", true, 1, "TÚ"));
     for (let i = 0; i < 8; i++) ents.push(mkE("S", false, 1, "Humano " + (i + 1)));
     timer = 60;
@@ -178,7 +178,7 @@ function update(dt) {
         if (e.wp !== "none" && d < rng && !los(e, tg) && e.cd <= 0) { shoot(e, a + rnd(-0.1, 0.1)); e.cd = fcd(e); }
       }
     }
-    if (mode === "inf" && e.team === "Z") for (const o of ents) if (o.team === "S" && o.alive && dist(e, o) < e.r + o.r + 2) { o.team = "Z"; o.smul = 1.5; o.wp = "none"; o.skin = "selva"; }
+    if (mode === "inf" && e.team === "Z") for (const o of ents) if (o.team === "S" && o.alive && dist(e, o) < e.r + o.r + 2) { o.team = "Z"; o.smul = 1.5; o.wp = "none"; o.zskin = randomZombie(); }
     if (mode === "koth" && hill) { const inside = ents.filter((o) => o.alive && dist(o, hill) < hill.r); if (inside.length === 1) inside[0].points += dt; }
     if (mode === "ctf" && flag) {
       if (!flag.carrier && e.team === flag.att && dist(e, flag) < e.r + 8) { flag.carrier = e; e.carry = true; }
@@ -218,6 +218,13 @@ function drawPup(x, y, ty) {
   ctx.restore();
 }
 
+function drawFlag(x, y, col) {
+  ctx.strokeStyle = "#3a3327"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, y + 6); ctx.lineTo(x, y - 20); ctx.stroke();
+  ctx.fillStyle = "#cfd3d8"; ctx.beginPath(); ctx.arc(x, y - 21, 2.5, 0, 6.283); ctx.fill();
+  ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(x, y - 19); ctx.quadraticCurveTo(x + 11, y - 16, x + 20, y - 18); ctx.lineTo(x + 20, y - 6); ctx.quadraticCurveTo(x + 11, y - 4, x + 1, y - 7); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.9)"; ctx.font = "700 9px sans-serif"; ctx.textAlign = "center"; ctx.fillText("★", x + 10, y - 9);
+}
+
 function draw() {
   const t = nowS();
   ctx.clearRect(0, 0, W, H);
@@ -237,7 +244,7 @@ function draw() {
   for (const pu of pups) drawPup(pu.x, pu.y, pu.ty);
   for (const nd of nades) { ctx.fillStyle = "#cfcfc6"; ctx.beginPath(); ctx.arc(nd.x, nd.y, 5, 0, 6.283); ctx.fill(); }
   for (const bl of bullets) { ctx.fillStyle = "#ffe8a0"; ctx.beginPath(); ctx.arc(bl.x, bl.y, 3, 0, 6.283); ctx.fill(); }
-  if (mode === "ctf" && flag) { ctx.fillStyle = "#FAC775"; ctx.fillRect(flag.x - 2, flag.y - 16, 3, 16); ctx.beginPath(); ctx.moveTo(flag.x + 1, flag.y - 16); ctx.lineTo(flag.x + 14, flag.y - 12); ctx.lineTo(flag.x + 1, flag.y - 8); ctx.fill(); }
+  if (mode === "ctf" && flag && !flag.carrier) drawFlag(flag.x, flag.y, flag.att === "A" ? "#378ADD" : "#E24B4A");
 
   for (const o of ents) {
     if (!o.alive) {
@@ -245,7 +252,9 @@ function draw() {
       ctx.fillStyle = "#cdd6ee"; ctx.font = "700 14px sans-serif"; ctx.textAlign = "center"; ctx.fillText(Math.ceil(o.resp), o.dx, o.dy + 5);
       continue;
     }
-    drawSoldier(ctx, o.x, o.y, o.r, getSkin(o.skin), o.aim, t);
+    if (mode === "inf" && o.team === "Z") drawZombie(ctx, o.x, o.y, o.r, getZombie(o.zskin), o.aim, t);
+    else drawSoldier(ctx, o.x, o.y, o.r, getSkin(o.skin), o.aim, t);
+    if (o.carry) drawFlag(o.x, o.y - o.r - 4, o.team === "A" ? "#378ADD" : "#E24B4A");
     if (o.isP) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(o.x, o.y, o.r + 3, 0, 6.283); ctx.stroke(); }
     if (o.bf.sh > 0 && o.shp > 0) { ctx.strokeStyle = "#85B7EB"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(o.x, o.y, o.r + 6, 0, 6.283); ctx.stroke(); }
     ctx.fillStyle = "rgba(255,255,255,0.22)"; ctx.fillRect(o.x - 15, o.y - o.r - 9, 30, 5);
